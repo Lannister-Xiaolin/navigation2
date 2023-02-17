@@ -96,6 +96,7 @@ void Costmap2D::deleteMaps()
   std::unique_lock<mutex_t> lock(*access_);
   delete[] costmap_;
   costmap_ = NULL;
+
 }
 
 void Costmap2D::initMaps(unsigned int size_x, unsigned int size_y)
@@ -552,5 +553,9 @@ bool Costmap2D::saveMap(std::string file_name)
   fclose(fp);
   return true;
 }
+unsigned int Costmap2D::getSize() const {
+  return size_x_*size_y_;
+}
+
 
 }  // namespace nav2_costmap_2d

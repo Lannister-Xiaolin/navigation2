@@ -76,16 +76,18 @@ public:
    * @param  tf_tolerance The amount of time to wait for a transform to be available when setting a new global frame
    */
   ObservationBuffer(
-    const nav2_util::LifecycleNode::WeakPtr & parent,
-    std::string topic_name,
-    double observation_keep_time,
-    double expected_update_rate,
-    double min_obstacle_height, double max_obstacle_height, double obstacle_max_range,
-    double obstacle_min_range,
-    double raytrace_max_range, double raytrace_min_range, tf2_ros::Buffer & tf2_buffer,
-    std::string global_frame,
-    std::string sensor_frame,
-    tf2::Duration tf_tolerance);
+      const nav2_util::LifecycleNode::WeakPtr &parent,
+      std::string topic_name,
+      double observation_keep_time,
+      double expected_update_rate,
+      double min_obstacle_height, double max_obstacle_height, double obstacle_max_range,
+      double obstacle_min_range,
+      double raytrace_max_range, double raytrace_min_range, tf2_ros::Buffer &tf2_buffer,
+      std::string global_frame,
+      std::string sensor_frame,
+      tf2::Duration tf_tolerance, bool enable_label_cloud, bool enable_lower_clear,
+      bool only_obstacle_label,
+      bool label_with_min_height_mode);
 
   /**
    * @brief  Destructor... cleans up
@@ -152,6 +154,8 @@ private:
   std::recursive_mutex lock_;  ///< @brief A lock for accessing data in callbacks safely
   double obstacle_max_range_, obstacle_min_range_, raytrace_max_range_, raytrace_min_range_;
   tf2::Duration tf_tolerance_;
+  bool enable_label_cloud_, enable_lower_clear_, only_obstacle_label_,label_with_min_height_mode_;
+  geometry_msgs::msg::PointStamped local_footprint_origin_;
 };
 }  // namespace nav2_costmap_2d
 #endif  // NAV2_COSTMAP_2D__OBSERVATION_BUFFER_HPP_

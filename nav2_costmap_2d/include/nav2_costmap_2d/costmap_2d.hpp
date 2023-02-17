@@ -49,7 +49,7 @@
 #include <mutex>
 #include "geometry_msgs/msg/point.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
-
+#include "cost_values.hpp"
 namespace nav2_costmap_2d
 {
 
@@ -243,7 +243,7 @@ public:
    * @return The y size of the costmap
    */
   unsigned int getSizeInCellsY() const;
-
+  unsigned int getSize() const;
   /**
    * @brief  Accessor for the x size of the costmap in meters
    * @return The x size of the costmap (returns the centerpoint of the last legal cell in the map)
@@ -344,7 +344,7 @@ public:
    * @brief Reset the costmap in bounds
    */
   void resetMap(unsigned int x0, unsigned int y0, unsigned int xn, unsigned int yn);
-
+  void resetCountMap();
   /**
    * @brief Reset the costmap in bounds to a value
    */
@@ -542,6 +542,23 @@ protected:
   private:
     unsigned char * costmap_;
     unsigned char value_;
+  };
+  // *INDENT-OFF* Uncrustify doesn't handle indented public/private labels
+  class DecreaseCellCost
+  {
+   public:
+    DecreaseCellCost(unsigned char * costmap)
+        : costmap_(costmap)
+    {
+    }
+    inline void operator()(unsigned int offset)
+    {
+      if (costmap_[offset]==NO_INFORMATION) { costmap_[offset] = FREE_SPACE; }else{
+      costmap_[offset] = costmap_[offset]>TRACE_CLEAR_COUNT?costmap_[offset]-TRACE_CLEAR_COUNT:FREE_SPACE;}
+    }
+
+   private:
+    unsigned char * costmap_;
   };
 
   class PolygonOutlineCells

@@ -74,6 +74,7 @@ public:
   ObstacleLayer()
   {
     costmap_ = NULL;  // this is the unsigned char* member of parent class Costmap2D.
+    count_costmap_ =NULL;
   }
 
   /**
@@ -198,6 +199,9 @@ protected:
     double * max_x,
     double * max_y);
 
+  virtual void emptyFreespace(
+      const nav2_costmap_2d::Observation & clearing_observation);
+
   /**
    * @brief Process update costmap with raytracing the window bounds
    */
@@ -241,6 +245,11 @@ protected:
   bool rolling_window_;
   bool was_reset_;
   int combination_method_;
+  bool hit_count_mode_,enable_small_area_restrict_;
+  double small_area_edge_len_;
+  unsigned char *count_costmap_; // count cost map
+  int inner_radius_,outer_radius_;
+   long outer_clear_count_; // 控制清空频率
 };
 
 }  // namespace nav2_costmap_2d

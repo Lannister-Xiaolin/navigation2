@@ -106,7 +106,7 @@ void addObservation(
   double obstacle_max_range = 100.0,
   double obstacle_min_range = 0.0)
 {
-  sensor_msgs::msg::PointCloud2 cloud;
+  sensor_msgs::msg::PointCloud2 cloud,empty_cloud;
   sensor_msgs::PointCloud2Modifier modifier(cloud);
   modifier.setPointCloud2FieldsByString(1, "xyz");
   modifier.resize(1);
@@ -122,7 +122,7 @@ void addObservation(
   p.y = oy;
   p.z = oz;
 
-  nav2_costmap_2d::Observation obs(p, cloud, obstacle_max_range, obstacle_min_range,
+  nav2_costmap_2d::Observation obs(p, cloud,empty_cloud, obstacle_max_range, obstacle_min_range,
     raytrace_max_range, raytrace_min_range);
   olayer->addStaticObservation(obs, marking, clearing);
 }

@@ -127,7 +127,29 @@ protected:
   void updateWithMax(
     nav2_costmap_2d::Costmap2D & master_grid, int min_i, int min_j, int max_i,
     int max_j);
+  /*
+   * Updates the master_grid within the specified
+   * bounding box using this layer's values.
+   *
+   * Overwrite means every valid value from this layer
+   * is written into the master grid (does not copy NO_INFORMATION)
+   */
+  void updateWithOverwriteByCount(
+      nav2_costmap_2d::Costmap2D & master_grid,
+      int min_i, int min_j, int max_i, int max_j);
 
+  /*
+   * Updates the master_grid within the specified
+   * bounding box using this layer's values.
+   *
+   * Sets the new value to the maximum of the master_grid's value
+   * and this layer's value. If the master value is NO_INFORMATION,
+   * it is overwritten. If the layer's value is NO_INFORMATION,
+   * the master value does not change.
+   */
+  void updateWithMaxByCount(
+      nav2_costmap_2d::Costmap2D & master_grid, int min_i, int min_j, int max_i,
+      int max_j);
   /*
    * Updates the master_grid within the specified
    * bounding box using this layer's values.
