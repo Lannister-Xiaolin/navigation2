@@ -38,11 +38,13 @@
 #include "gtest/gtest.h"
 #include "nav2_controller/plugins/simple_goal_checker.hpp"
 #include "nav2_controller/plugins/stopped_goal_checker.hpp"
+#include "nav2_controller/plugins/try_closer_goal_checker.hpp"
 #include "nav_2d_utils/conversions.hpp"
 #include "nav2_util/lifecycle_node.hpp"
 
 using nav2_controller::SimpleGoalChecker;
 using nav2_controller::StoppedGoalChecker;
+using nav2_controller::TryCloserGoalChecker;
 
 void checkMacro(
   nav2_core::GoalChecker & gc,

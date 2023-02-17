@@ -63,6 +63,12 @@ ament_target_dependencies(stopped_goal_checker ${dependencies})
 # prevent pluginlib from using boost
 target_compile_definitions(stopped_goal_checker PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 
+
+add_library(try_closer_goal_checker SHARED plugins/try_closer_goal_checker.cpp)
+ament_target_dependencies(try_closer_goal_checker ${dependencies})
+# prevent pluginlib from using boost
+target_compile_definitions(try_closer_goal_checker PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
+
 ament_target_dependencies(${library_name}
   ${dependencies}
 )
@@ -86,7 +92,7 @@ ament_target_dependencies(${executable_name}
 
 target_link_libraries(${executable_name} ${library_name})
 
-install(TARGETS simple_progress_checker simple_goal_checker stopped_goal_checker ${library_name}
+install(TARGETS simple_progress_checker simple_goal_checker stopped_goal_checker try_closer_goal_checker  ${library_name}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -109,6 +115,7 @@ ament_export_include_directories(include)
 ament_export_libraries(simple_progress_checker
   simple_goal_checker
   stopped_goal_checker
+  try_closer_goal_checker
   ${library_name})
 ament_export_dependencies(${dependencies})
 pluginlib_export_plugin_description_file(nav2_core plugins.xml)
