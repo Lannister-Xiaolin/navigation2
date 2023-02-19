@@ -9,6 +9,11 @@
       <description>Checks if current pose is within goal window for x,y and yaw</description>
     </class>
   </library>
+  <library path="simple_goal_checker">
+    <class type="nav2_controller::SimpleGoalChecker" base_class_type="nav2_core::GoalChecker">
+      <description>Checks if current pose is within goal window for x,y and yaw</description>
+    </class>
+  </library>
   <library path="stopped_goal_checker">
     <class type="nav2_controller::StoppedGoalChecker" base_class_type="nav2_core::GoalChecker">
         <description>Checks linear and angular velocity after stopping</description>

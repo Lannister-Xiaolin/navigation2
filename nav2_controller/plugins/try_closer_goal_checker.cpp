@@ -123,7 +123,7 @@ bool TryCloserGoalChecker::isGoalReached(
       try_count_++;
       auto diff = result-last_xy_goa_sq_;
 //      std::cout<<xy_goal_tolerance_sq_center_<<"     last_xy_goa_sq_:"<<last_xy_goa_sq_<<"          diff: "<<diff<<" try_count_"<<try_count_<<"\n";
-      if (diff<0.002 && try_count_<50){
+      if (diff<0.002 && try_count_<30){
         last_xy_goa_sq_ = result;
         return false;
       }
