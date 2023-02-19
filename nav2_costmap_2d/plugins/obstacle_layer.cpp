@@ -564,8 +564,10 @@ ObstacleLayer::updateBounds(
       }
     }
   }
-  delete[] count_costmap_;
-  count_costmap_ = NULL;
+  if (count_costmap_!=NULL){
+    delete[] count_costmap_;
+    count_costmap_ = NULL;
+  }
   if (enable_small_area_restrict_ && (outer_clear_count_ % 2 == 0)) {
     touch(robot_x + small_area_edge_len_, robot_y + small_area_edge_len_, min_x, min_y, max_x, max_y);
     touch(robot_x - small_area_edge_len_, robot_y - small_area_edge_len_, min_x, min_y, max_x, max_y);
