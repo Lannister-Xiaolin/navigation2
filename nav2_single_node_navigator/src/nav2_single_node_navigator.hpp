@@ -335,6 +335,8 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
     twist_thresh.theta = getThresholdedVelocity(twist.theta, min_theta_velocity_threshold_);
     return twist_thresh;
   }
+  bool isPathCollisionWithObstacle(nav_msgs::msg::Path &path);
+
   // ---------------controller----------------
 
   // Planner

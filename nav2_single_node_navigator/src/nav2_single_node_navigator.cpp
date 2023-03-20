@@ -34,6 +34,7 @@
 #include "nav2_util/node_utils.hpp"
 #include "nav2_util/geometry_utils.hpp"
 #include "nav2_single_node_navigator.hpp"
+#include "nav2_costmap_2d/cost_values.hpp"
 
 using namespace std::chrono_literals;
 using namespace std::placeholders;
@@ -41,7 +42,10 @@ using namespace std::placeholders;
 namespace nav2_single_node_navigator {
 
 Nav2SingleNodeNavigator::Nav2SingleNodeNavigator()
-    : nav2_util::LifecycleNode("nav2_single_node_navigator", "", true, rclcpp::NodeOptions().use_intra_process_comms(true)),
+    : nav2_util::LifecycleNode("nav2_single_node_navigator",
+                               "",
+                               true,
+                               rclcpp::NodeOptions().use_intra_process_comms(true)),
       gp_loader_("nav2_core", "nav2_core::GlobalPlanner"),
       default_ids_{"GridBased"},
       default_types_{"nav2_navfn_planner/NavfnPlanner"},
@@ -1028,6 +1032,7 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
   if (!startFollowPath(path)) return;
   //todo 调用规划器
   rclcpp::Time path_time = now();
+  rclcpp::Time last_check_time = now();
   try {
     while (rclcpp::ok()) {
       auto current = now();
@@ -1036,16 +1041,23 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
         return;
       } else if (action_server_nav_to_pos_->is_preempt_requested()) {
         goal = action_server_nav_to_pos_->accept_pending_goal();
-        RCLCPP_INFO(get_logger(),"------------ Update new goal!!!");
+        RCLCPP_INFO(get_logger(), "------------ Update new goal!!!");
         if (!computePathForNavToPose("GridBased", goal->pose, path)) return;
         if (!startFollowPath(path)) return;
+        path_time = current;
+        last_check_time = current;
         //todo 调用规划器进行规划
       }
-      if ((current-path_time)>tf2::durationFromSec(2.0)){
-        if (!computePathForNavToPose("GridBased", goal->pose, path)) return;
-        if (!startFollowPath(path)) return;
-        RCLCPP_INFO(get_logger(),"------------ Update new path!!!");
-        path_time = current;
+      auto diff = current - last_check_time;
+      if (diff > tf2::durationFromSec(0.8)) {
+        last_check_time = current;
+        auto path_diff_time = current - path_time;
+        if (isPathCollisionWithObstacle(path) || path_diff_time > tf2::durationFromSec(120.0)) {
+          if (!computePathForNavToPose("GridBased", goal->pose, path)) return;
+          if (!startFollowPath(path)) return;
+          RCLCPP_INFO(get_logger(), "------------ Update new path!!!");
+          path_time = current;
+        }
       }
       if (!follow_path_working_) break;
 
@@ -1109,9 +1121,9 @@ Nav2SingleNodeNavigator::callback_updated_goal(const geometry_msgs::msg::PoseSta
 }
 void Nav2SingleNodeNavigator::followPathResultCallback(const rclcpp_action::ClientGoalHandle<ActionFollowPath>::WrappedResult &result) {
   if (follow_path_client_goal_id_ != result.goal_id) return;
-  RCLCPP_DEBUG(get_logger(),"         follow_path_client_goal_id_:  %s  result.goal_id:  %s",
-              rclcpp_action::to_string(follow_path_client_goal_id_).c_str(),
-              rclcpp_action::to_string(result.goal_id).c_str());
+  RCLCPP_DEBUG(get_logger(), "         follow_path_client_goal_id_:  %s  result.goal_id:  %s",
+               rclcpp_action::to_string(follow_path_client_goal_id_).c_str(),
+               rclcpp_action::to_string(result.goal_id).c_str());
   follow_path_client_result_ = result;
   switch (result.code) {
     case rclcpp_action::ResultCode::SUCCEEDED:RCLCPP_INFO(get_logger(), ">>>>>>>>>>  Follow path was success");
@@ -1140,7 +1152,9 @@ bool Nav2SingleNodeNavigator::startFollowPath(const nav_msgs::msg::Path &path) {
   } else {
     follow_path_client_goal_id_ = goal_handle->get_goal_id();
     follow_path_working_ = true;
-    RCLCPP_DEBUG(get_logger(),"         follow_path_client_goal_id_:  %s",rclcpp_action::to_string(follow_path_client_goal_id_).c_str());
+    RCLCPP_DEBUG(get_logger(),
+                 "         follow_path_client_goal_id_:  %s",
+                 rclcpp_action::to_string(follow_path_client_goal_id_).c_str());
   }
   return true;
 }
@@ -1152,4 +1166,19 @@ bool Nav2SingleNodeNavigator::startNavToPose(const geometry_msgs::msg::PoseStamp
   action_client_nav_to_pos_->async_send_goal(goal);
   return true;
 }
+bool Nav2SingleNodeNavigator::isPathCollisionWithObstacle(nav_msgs::msg::Path &path) {
+  RCLCPP_INFO(get_logger(), "Path size %zu  frame: %s", path.poses.size(), path.header.frame_id.c_str());
+  for (unsigned int i = 1; i < path.poses.size(); ++i) {
+    unsigned int mx, my;
+    if (global_costmap_->worldToMap(path.poses[i].pose.position.x, path.poses[i].pose.position.y, mx, my)) {
+      auto value = global_costmap_->getCost(mx, my);
+      if (value == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value == nav2_costmap_2d::LETHAL_OBSTACLE) {
+        RCLCPP_WARN(get_logger(), "Path may be collision with obstacle!!!!");
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 }  // namespace nav2_non_bt_navigator
