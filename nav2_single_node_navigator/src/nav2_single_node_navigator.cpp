@@ -41,6 +41,27 @@ using namespace std::placeholders;
 
 namespace nav2_single_node_navigator {
 
+std::string StringNavToPoseStatus(NavToPoseStatus task_status) {
+  switch (task_status) {
+    case NavToPoseStatus::GOAL_UPDATED:return "GOAL_UPDATED";
+    case NavToPoseStatus::PATH_UPDATED:return "PATH_UPDATED";
+    case NavToPoseStatus::PLAN_PATH_FAILED:return "PLAN_PATH_FAILED";
+    case NavToPoseStatus::GOAL_COLLIDED:return "GOAL_COLLIDED";
+    case NavToPoseStatus::FOLLOWING:return "FOLLOWING";
+    case NavToPoseStatus::ACTION_FAILED:return "ACTION_FAILED";
+    case NavToPoseStatus::FOLLOW_PATH_ABORTED:return "FOLLOW_PATH_ABORTED";
+    case NavToPoseStatus::ODOM_NO_MOVE:return "ODOM_NO_MOVE";
+    case NavToPoseStatus::FOLLOW_PATH_COLLIDED:return "FOLLOW_PATH_COLLIDED";
+    case NavToPoseStatus::STUCK_RECOVER_FAIL:return "STUCK_RECOVER_FAIL";
+    case NavToPoseStatus::CURRENT_STUCK_RECOVERY:return "CURRENT_STUCK_RECOVERY";
+    case NavToPoseStatus::CANCELLED:return "CANCELLED";
+    case NavToPoseStatus::TF_FAILED:return "TF_FAILED";
+    case NavToPoseStatus::SUCCESS:return "SUCCESS";
+
+    default:return "ERROR STATUS";
+  }
+}
+
 Nav2SingleNodeNavigator::Nav2SingleNodeNavigator()
     : nav2_util::LifecycleNode("nav2_single_node_navigator",
                                "",
@@ -99,6 +120,12 @@ Nav2SingleNodeNavigator::Nav2SingleNodeNavigator()
 
   // Launch a thread to run the costmap node
   local_costmap_thread_ = std::make_unique<nav2_util::NodeThread>(local_costmap_ros_);
+  //-------to be parameterized params
+  max_back_angular_vel_ = 0.15; // stuck recover max back angular vel
+  max_back_dis_ = 0.31;
+  max_back_vel_ = 0.1;
+  path_fail_stuck_confirm_range_ = 0.06;
+  follow_fail_stuck_confirm_range_ = 0.11;
 }
 
 Nav2SingleNodeNavigator::~Nav2SingleNodeNavigator() {
@@ -321,6 +348,9 @@ Nav2SingleNodeNavigator::on_configure(const rclcpp_lifecycle::State &state) {
   follow_path_send_goal_options_.result_callback =
       std::bind(&Nav2SingleNodeNavigator::followPathResultCallback, this, _1);
 
+  clear_local_around_client_ = node->create_client<nav2_msgs::srv::ClearCostmapAroundRobot>(
+      "/local_costmap/clear_around_local_costmap");
+
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -393,7 +423,7 @@ Nav2SingleNodeNavigator::on_cleanup(const rclcpp_lifecycle::State &state) {
   plan_publisher_.reset();
   tf_.reset();
   global_costmap_ros_->on_cleanup(state);
-
+  clear_local_around_client_.reset();
   PlannerMap::iterator it;
   for (it = planners_.begin(); it != planners_.end(); ++it) {
     it->second->cleanup();
@@ -1002,14 +1032,11 @@ void Nav2SingleNodeNavigator::speedLimitCallback(const nav2_msgs::msg::SpeedLimi
   }
 }
 void Nav2SingleNodeNavigator::navToPoseCallback() {
-  //todo 处理好这些函数即可，还要解决下多线程自己调用自己的问题
-  //todo 非固定频率的处理问题
-  //todo 增加路径记录的处理
-  if (!OnNavToPoseGoalReceivedCallback(action_server_nav_to_pos_->get_current_goal())) {
-    action_server_nav_to_pos_->terminate_current();
-    return;
-  }
-
+  RCLCPP_INFO(
+      get_logger(),
+      "Begin navigating from current location to (%.2f, %.2f)",
+      action_server_nav_to_pos_->get_current_goal()->pose.pose.position.x,
+      action_server_nav_to_pos_->get_current_goal()->pose.pose.position.y);
   auto is_canceling = [&]() {
     if (action_server_nav_to_pos_ == nullptr) {
       RCLCPP_DEBUG(get_logger(), "Action server unavailable. Canceling.");
@@ -1023,62 +1050,111 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
   };
 
   rclcpp::WallRate loopRate(5);
-  auto goal = action_server_nav_to_pos_->get_current_goal();
-  auto result = std::make_shared<ActionNavToPose::Result>();
-  auto start_time = get_clock()->now();
+  navigate_to_pose_goal_ = action_server_nav_to_pos_->get_current_goal();
+  navigate_to_pose_result_ = std::make_shared<ActionNavToPose::Result>();
+  task_start_time_ = get_clock()->now();
   // Loop until something happens with ROS or the node completes
-  nav_msgs::msg::Path path;
-  if (!computePathForNavToPose("GridBased", goal->pose, path)) return;
-  if (!startFollowPath(path)) return;
-  //todo 调用规划器
-  rclcpp::Time path_time = now();
-  rclcpp::Time last_check_time = now();
+  nav_to_pose_status_ = NavToPoseStatus::GOAL_UPDATED;
+  prev_nav_to_pose_status_ = NavToPoseStatus::GOAL_UPDATED;
+  current_path_time_ = now();
+  last_check_time_ = now();
+  follow_path_working_ = false;
+  int tf_failed_retry_count = 0;
+  can_try_recover_ = true;
+  current_planned_path_ = nav_msgs::msg::Path();
   try {
     while (rclcpp::ok()) {
-      auto current = now();
-      if (is_canceling()) {
-        action_server_nav_to_pos_->terminate_current(result);
-        return;
-      } else if (action_server_nav_to_pos_->is_preempt_requested()) {
-        goal = action_server_nav_to_pos_->accept_pending_goal();
-        RCLCPP_INFO(get_logger(), "------------ Update new goal!!!");
-        if (!computePathForNavToPose("GridBased", goal->pose, path)) return;
-        if (!startFollowPath(path)) return;
-        path_time = current;
-        last_check_time = current;
-        //todo 调用规划器进行规划
-      }
-      auto diff = current - last_check_time;
-      if (diff > tf2::durationFromSec(0.8)) {
-        last_check_time = current;
-        auto path_diff_time = current - path_time;
-        if (isPathCollisionWithObstacle(path) || path_diff_time > tf2::durationFromSec(120.0)) {
-          if (!computePathForNavToPose("GridBased", goal->pose, path)) return;
-          if (!startFollowPath(path)) return;
-          RCLCPP_INFO(get_logger(), "------------ Update new path!!!");
-          path_time = current;
+      current_time_ = now();
+      if (nav_to_pose_status_ == NavToPoseStatus::GOAL_UPDATED) {
+        goalUpdatedDeal();
+      } else if (nav_to_pose_status_ == NavToPoseStatus::PATH_UPDATED) {
+        pathUpdatedDeal();
+      } else if (nav_to_pose_status_ == NavToPoseStatus::PLAN_PATH_FAILED) {
+        planPathFailedDeal();
+        if (!can_try_recover_) break;
+      } else if (nav_to_pose_status_ == NavToPoseStatus::ACTION_FAILED) {
+        RCLCPP_WARN(get_logger(), "Follow path failed!!!");
+        break;
+      } else if (nav_to_pose_status_ == NavToPoseStatus::TF_FAILED) {
+        tf_failed_retry_count += 1;
+        if (updateGlobalPose()) updateStatus(NavToPoseStatus::GOAL_UPDATED);
+        if (tf_failed_retry_count > 5) break;
+      } else if (nav_to_pose_status_ == NavToPoseStatus::FOLLOW_PATH_COLLIDED
+          || nav_to_pose_status_ == NavToPoseStatus::FOLLOW_PATH_ABORTED) {
+        if (isCurrentStuck(follow_fail_stuck_confirm_range_)) {
+          updateStatus(NavToPoseStatus::CURRENT_STUCK_RECOVERY);
+        } else if (isCurrentLocalStuck(follow_fail_stuck_confirm_range_)) {
+          RCLCPP_WARN(get_logger(),
+                      "Local cost map and global cost map is different, some obstacle is not in global cost map!!!");
+          if (clear_local_around_client_->wait_for_service(200ms)) {
+            RCLCPP_WARN(get_logger(), "Just clear around costmap and move very small distance!!!");
+            nav2_msgs::srv::ClearCostmapAroundRobot::Request::SharedPtr
+                request = std::make_shared<nav2_msgs::srv::ClearCostmapAroundRobot::Request>();
+            request->reset_distance = 0.4;
+            clear_local_around_client_->async_send_request(request);
+            std::this_thread::sleep_for(500ms);
+            geometry_msgs::msg::Twist twist;
+            twist.angular.z = 0.1;
+            twist.angular.x = -0.03;
+            vel_publisher_->publish(twist);
+            std::this_thread::sleep_for(100ms);
+            twist.angular.z = 0.0;
+            twist.angular.x = 0.0;
+            vel_publisher_->publish(twist);
+            updateStatus(NavToPoseStatus::GOAL_UPDATED);
+          } else {
+            RCLCPP_ERROR(get_logger(), "/local_costmap/clear_around_local_costmap service is not ready, stop task!!!");
+            break;
+          }
+        } else {
+          RCLCPP_WARN(get_logger(), "Current position is not stucked. Maybe controller is not able to compute path!!!");
+          break;
         }
+      } else if (nav_to_pose_status_ == NavToPoseStatus::ODOM_NO_MOVE) {
+        RCLCPP_WARN(get_logger(), "Look like robot is not moving!!!");
+        break;
+      } else if (nav_to_pose_status_ == NavToPoseStatus::GOAL_COLLIDED) {
+        action_client_follow_path_->async_cancel_all_goals();
+        RCLCPP_WARN(get_logger(), "Look like goal is occupied by obstacle!!!");
+        break;
+      } else if (nav_to_pose_status_ == NavToPoseStatus::CANCELLED) {
+        RCLCPP_INFO(get_logger(), "Goal cancelled!!!");
+        break;
+      } else if (nav_to_pose_status_ == NavToPoseStatus::STUCK_RECOVER_FAIL) {
+        RCLCPP_INFO(get_logger(), "Can't recover from stuck!!!");
+        break;
+      } else if (nav_to_pose_status_ == NavToPoseStatus::CURRENT_STUCK_RECOVERY) {
+        currentStuckRecoveryDeal();
+      } else if (nav_to_pose_status_ == NavToPoseStatus::SUCCESS) {
+        break;
+      } else if (nav_to_pose_status_ == NavToPoseStatus::FOLLOWING) {
+        followingDeal();
       }
-      if (!follow_path_working_) break;
-
-      //todo 1、 needPlanningPath
-      //todo 2、 needResendPathToFollow
-      //todo 3、checkFollowPathResponce
-      //todo 4、 FailedResultCheck
-      //todo 5、FailedStatus_Dealing like fallback and out tof robot
-      //todo 6、 responce
+      if (is_canceling()) {
+        updateStatus(NavToPoseStatus::CANCELLED);
+      } else if (action_server_nav_to_pos_->is_preempt_requested()) {
+        navigate_to_pose_goal_ = action_server_nav_to_pos_->accept_pending_goal();
+        updateStatus(NavToPoseStatus::GOAL_UPDATED);
+      }
       loopRate.sleep();
     }
   } catch (const std::exception &ex) {
-    RCLCPP_ERROR(
-        rclcpp::get_logger("BehaviorTreeEngine"),
-        "Behavior tree threw exception: %s. Exiting with failure.", ex.what());
-    action_server_nav_to_pos_->terminate_current(result);
+    RCLCPP_ERROR(get_logger(), "Unknown Error!!!! %s", ex.what());
+    action_server_nav_to_pos_->terminate_current(navigate_to_pose_result_);
   }
-
-  // Give server an opportunity to populate the result message or simple give
-  // an indication that the action is complete.
-  action_server_nav_to_pos_->succeeded_current(result);
+  if (follow_path_working_){
+    action_client_follow_path_->async_cancel_all_goals();
+  }
+  if (nav_to_pose_status_ == NavToPoseStatus::SUCCESS) {
+    // Give server an opportunity to populate the result message or simple give
+    // an indication that the action is complete.
+    action_server_nav_to_pos_->succeeded_current(navigate_to_pose_result_);
+  } else {
+    action_server_nav_to_pos_->terminate_current(navigate_to_pose_result_);
+  }
+  navigate_to_pose_goal_.reset();
+  navigate_to_pose_result_.reset();
+  current_planned_path_ = nav_msgs::msg::Path();
 }
 
 bool Nav2SingleNodeNavigator::OnNavToPoseGoalReceivedCallback(ActionNavToPose::Goal::ConstSharedPtr goal) {
@@ -1096,22 +1172,23 @@ bool Nav2SingleNodeNavigator::computePathForNavToPose(const std::string &planner
 
   waitForCostmap();
   // Use start pose if provided otherwise use current robot pose
-  geometry_msgs::msg::PoseStamped start;
-  if (!global_costmap_ros_->getRobotPose(start)) {
+//  geometry_msgs::msg::PoseStamped start;
+  if (!global_costmap_ros_->getRobotPose(global_pose_)) {
     return false;
   }
   auto end = goal_pose;
-  if (!global_costmap_ros_->transformPoseToGlobalFrame(start, start) ||
+  if (!global_costmap_ros_->transformPoseToGlobalFrame(global_pose_, global_pose_) ||
       !global_costmap_ros_->transformPoseToGlobalFrame(end, end)) {
     return false;
 
   }
-  path = getPlan(start, end, planner_id);
+  path = getPlan(global_pose_, end, planner_id);
   if (!validatePath(action_server_path_to_pose_, end, path, planner_id)) {
     return false;
   }
   // Publish the plan for visualization purposes
   publishPlan(path);
+  RCLCPP_INFO(get_logger(), "---Path size %zu  frame: %s", path.poses.size(), path.header.frame_id.c_str());
   return true;
 }
 void
@@ -1167,8 +1244,17 @@ bool Nav2SingleNodeNavigator::startNavToPose(const geometry_msgs::msg::PoseStamp
   return true;
 }
 bool Nav2SingleNodeNavigator::isPathCollisionWithObstacle(nav_msgs::msg::Path &path) {
-  RCLCPP_INFO(get_logger(), "Path size %zu  frame: %s", path.poses.size(), path.header.frame_id.c_str());
-  for (unsigned int i = 1; i < path.poses.size(); ++i) {
+  if (!updateGlobalPose()) return false;
+  auto closest = std::min_element(path.poses.begin(), path.poses.end(), [this](geometry_msgs::msg::PoseStamped &a,
+                                                                               geometry_msgs::msg::PoseStamped &b) {
+    auto a_dis = std::abs(global_pose_.pose.position.x - a.pose.position.x)
+        + std::abs(global_pose_.pose.position.y - a.pose.position.y);
+    auto b_dis = std::abs(global_pose_.pose.position.x - b.pose.position.x)
+        + std::abs(global_pose_.pose.position.y - b.pose.position.y);
+    return a_dis < b_dis;
+  });
+  auto start = std::distance(path.poses.begin(), closest);
+  for (unsigned int i = start; i < path.poses.size(); ++i) {
     unsigned int mx, my;
     if (global_costmap_->worldToMap(path.poses[i].pose.position.x, path.poses[i].pose.position.y, mx, my)) {
       auto value = global_costmap_->getCost(mx, my);
@@ -1179,6 +1265,247 @@ bool Nav2SingleNodeNavigator::isPathCollisionWithObstacle(nav_msgs::msg::Path &p
     }
   }
   return false;
+}
+
+void Nav2SingleNodeNavigator::updateStatus(NavToPoseStatus nav_to_pose_status) {
+  if (nav_to_pose_status == nav_to_pose_status_) return;
+  prev_nav_to_pose_status_ = nav_to_pose_status_;
+  nav_to_pose_status_ = nav_to_pose_status;
+  RCLCPP_INFO(get_logger(), "--------------------Current  status: %s  prev  status: %s--------------------",
+              StringNavToPoseStatus(nav_to_pose_status_).c_str(),
+              StringNavToPoseStatus(prev_nav_to_pose_status_).c_str());
+}
+bool Nav2SingleNodeNavigator::updateGlobalPose() {
+  if (!global_costmap_ros_->getRobotPose(global_pose_)) {
+    updateStatus(NavToPoseStatus::TF_FAILED);
+    return false;
+  }
+  if (!global_costmap_ros_->transformPoseToGlobalFrame(global_pose_, global_pose_)) {
+    updateStatus(NavToPoseStatus::TF_FAILED);
+    return false;
+  }
+  return true;
+}
+void Nav2SingleNodeNavigator::followingDeal() {
+  if (!follow_path_working_) {
+    if (follow_path_client_result_.code == rclcpp_action::ResultCode::SUCCEEDED) {
+      updateStatus(NavToPoseStatus::SUCCESS);
+    } else {
+      updateStatus(NavToPoseStatus::FOLLOW_PATH_COLLIDED);
+    }
+  } else {
+    auto diff = current_time_ - last_check_time_;
+    if (diff > tf2::durationFromSec(0.8)) {
+      last_check_time_ = current_time_;
+      auto path_diff_time = current_time_ - current_path_time_;
+      if (isPathCollisionWithObstacle(current_planned_path_) || path_diff_time > tf2::durationFromSec(120.0)) {
+        updateStatus(NavToPoseStatus::GOAL_UPDATED);
+      }
+    }
+  }
+}
+void Nav2SingleNodeNavigator::pathUpdatedDeal() {
+  if (startFollowPath(current_planned_path_)) {
+    current_path_time_ = current_time_;
+    last_check_time_ = current_time_;
+    updateStatus(NavToPoseStatus::FOLLOWING);
+  } else updateStatus(NavToPoseStatus::ACTION_FAILED);
+}
+void Nav2SingleNodeNavigator::goalUpdatedDeal() {
+  if (computePathForNavToPose("GridBased", navigate_to_pose_goal_->pose, current_planned_path_)) {
+    re_plan_count_ = 0;
+    updateStatus(NavToPoseStatus::PATH_UPDATED);
+  } else updateStatus(NavToPoseStatus::PLAN_PATH_FAILED);
+}
+void Nav2SingleNodeNavigator::planPathFailedDeal() {
+  if (isCurrentStuck(path_fail_stuck_confirm_range_)) {
+    updateStatus(NavToPoseStatus::CURRENT_STUCK_RECOVERY);
+    can_try_recover_ = true;
+  } else if (isGoalCollided()) {
+    updateStatus(NavToPoseStatus::GOAL_COLLIDED);
+    can_try_recover_ = true;
+  } else {
+    can_try_recover_ = false;
+  };
+}
+bool Nav2SingleNodeNavigator::isCurrentStuck(double search_range) {
+  if (!updateGlobalPose()) return false;
+  unsigned int mx, my;
+  int grid_search_range = std::max(static_cast<int>(search_range / global_costmap_->getResolution()), 1);
+  if (global_costmap_->worldToMap(global_pose_.pose.position.x, global_pose_.pose.position.y, mx, my)) {
+    for (int i = 1; i <= grid_search_range; ++i) {
+      std::vector<int> x_offset = {0, 0, 0, -i, i, i, -i, i, -i};
+      std::vector<int> y_offset = {0, i, -i, 0, 0, i, -i, -i, i};
+      for (int j = 0; j < 9; ++j) {
+        unsigned int x = static_cast<int>(mx) + x_offset[i];
+        unsigned int y = static_cast<int>(my) + y_offset[i];
+        auto value1 = global_costmap_->getCost(x, y);
+        auto condition1 =
+            value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value1 == nav2_costmap_2d::LETHAL_OBSTACLE;
+        if (condition1) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+bool Nav2SingleNodeNavigator::isCurrentLocalStuck(double search_range) {
+  geometry_msgs::msg::PoseStamped local_pose;
+  if (!local_costmap_ros_->getRobotPose(local_pose)) {
+    return false;
+  }
+  unsigned int mx, my;
+  int grid_search_range =
+      std::max(static_cast<int>(search_range / local_costmap_ros_->getCostmap()->getResolution()), 1);
+  if (local_costmap_ros_->getCostmap()->worldToMap(local_pose.pose.position.x, local_pose.pose.position.y, mx, my)) {
+    for (int i = 1; i <= grid_search_range; ++i) {
+      std::vector<int> x_offset = {0, 0, 0, -i, i, i, -i, i, -i};
+      std::vector<int> y_offset = {0, i, -i, 0, 0, i, -i, -i, i};
+      for (int j = 0; j < 9; ++j) {
+        unsigned int x = static_cast<int>(mx) + x_offset[i];
+        unsigned int y = static_cast<int>(my) + y_offset[i];
+        auto value1 = local_costmap_ros_->getCostmap()->getCost(x, y);
+        auto condition1 =
+            value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value1 == nav2_costmap_2d::LETHAL_OBSTACLE;
+        if (condition1) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+bool Nav2SingleNodeNavigator::isGoalCollided() {
+  auto goal_pose = navigate_to_pose_goal_->pose;
+  global_costmap_ros_->transformPoseToGlobalFrame(goal_pose, goal_pose);
+  unsigned int mx, my;
+  if (global_costmap_->worldToMap(goal_pose.pose.position.x, goal_pose.pose.position.y, mx, my)) {
+    auto value1 = global_costmap_->getCost(mx, my - 1);
+    auto value2 = global_costmap_->getCost(mx + 1, my);
+    auto value3 = global_costmap_->getCost(mx - 1, my);
+    auto value4 = global_costmap_->getCost(mx, my + 1);
+    auto condition1 =
+        value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value1 == nav2_costmap_2d::LETHAL_OBSTACLE;
+    auto condition2 =
+        value2 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value2 == nav2_costmap_2d::LETHAL_OBSTACLE;
+    auto condition3 =
+        value3 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value3 == nav2_costmap_2d::LETHAL_OBSTACLE;
+    auto condition4 =
+        value4 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value4 == nav2_costmap_2d::LETHAL_OBSTACLE;
+    if (condition1 || condition2 || condition3 || condition4) {
+      return true;
+    }
+  }
+  return false;
+}
+void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
+  if (!updateGlobalPose()) return;
+  action_client_follow_path_->async_cancel_all_goals();
+  unsigned int mx = 0, my = 0, final_x = 0, final_y = 0;
+  if (!global_costmap_->worldToMap(global_pose_.pose.position.x, global_pose_.pose.position.y, mx, my)) {
+    updateStatus(NavToPoseStatus::STUCK_RECOVER_FAIL);
+    return;
+  };
+  if (mx < 6 || my < 6 || (my > (global_costmap_->getSizeInCellsY() - 6))
+      || (mx > (global_costmap_->getSizeInCellsX() - 6))) {
+    RCLCPP_WARN(get_logger(), "Robot is very close to the edge of map");
+    updateStatus(NavToPoseStatus::STUCK_RECOVER_FAIL);
+    return;
+  }
+  int search_range = static_cast<int>(max_back_dis_ / 0.05);
+//  unsigned char thresh = 80;
+  bool final_recover_pos = false;
+  for (int i = 1; i < search_range; ++i) {
+    std::vector<int> x_offset = {0, 0, 0, -i, i, i, -i, i, -i};
+    std::vector<int> y_offset = {0, i, -i, 0, 0, i, -i, -i, i};
+    for (int j = 0; j < 9; ++j) {
+      final_x = static_cast<int>(mx) + x_offset[j];
+      final_y = static_cast<int>(my) + y_offset[j];
+      auto value = global_costmap_->getCost(final_x, final_y);
+//      RCLCPP_INFO(get_logger(),
+//                  "  mx: %u  my:  %u  final_x: %u  final_y:  %u value:%u",
+//                  mx,
+//                  my,
+//                  final_x,
+//                  final_y,value);
+      if (value < nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value == nav2_costmap_2d::NO_INFORMATION) {
+        final_recover_pos = true;
+        break;
+      }
+    }
+    if (final_recover_pos) break;
+  }
+  if (!final_recover_pos) {
+    RCLCPP_WARN(get_logger(), "Can't find any movable area for stuck recover!!!");
+    updateStatus(NavToPoseStatus::STUCK_RECOVER_FAIL);
+    return;
+  }
+  geometry_msgs::msg::PoseStamped pose_stamped = global_pose_;
+  global_costmap_->mapToWorld(final_x, final_y, pose_stamped.pose.position.x, pose_stamped.pose.position.y);
+  nav2_util::transformPoseInTargetFrame(pose_stamped, pose_stamped, *tf_, "base_link", 0.2);
+  auto dis = std::hypot(pose_stamped.pose.position.x, pose_stamped.pose.position.y);
+  auto angle = std::atan2(pose_stamped.pose.position.y, pose_stamped.pose.position.x);
+  angle = tf2NormalizeAngle(angle);
+  double vel = 0.1;
+  double angular_vel = 0;
+  auto abs_angle = abs(angle);
+  if (abs_angle < 1.5) {
+    vel = max_back_vel_;
+  } else {
+    vel = -max_back_vel_;
+  }
+  if (abs_angle > 2.5 || abs_angle < 0.5) {
+    angular_vel = 0.;
+  } else {
+    if (angle < 1.5 && angle > 0) {
+      angular_vel = max_back_angular_vel_;
+    } else if (angular_vel > -1.5 && angle < 0) {
+      angular_vel = -max_back_angular_vel_;
+    } else if (angle > 0 && angle > 1.5) {
+      angular_vel = -max_back_angular_vel_;
+    } else if (angular_vel < -1.5 && angle < 0) {
+      angular_vel = max_back_angular_vel_;
+    }
+  }
+  auto count = static_cast<int>(((dis + 0.1)) * 10 / 0.1);
+  geometry_msgs::msg::Twist twist;
+  twist.angular.z = angular_vel;
+  twist.linear.x = vel;
+  int odom_no_move_count = 0;
+//  RCLCPP_INFO(get_logger(),
+//              "Find relative recover position:x:%.2f  y: %.2f  mx: %u  my:  %u  final_x: %u  final_y:  %u angular_vel: %.2f vel: %.2f  angle: %.2f",
+//              pose_stamped.pose.position.x,
+//              pose_stamped.pose.position.y,
+//              mx,
+//              my,
+//              final_x,
+//              final_y,
+//              angular_vel,
+//              vel,
+//              angle);
+  for (int i = 0; i < count; ++i) {
+    if (rclcpp::ok()) {
+      vel_publisher_->publish(twist);
+      std::this_thread::sleep_for(100ms);
+      if (odom_sub_->getTwist().x == 0) {
+        odom_no_move_count++;
+      }
+    }
+  }
+  twist.angular.z = 0;
+  twist.linear.x = 0;
+  vel_publisher_->publish(twist);
+  re_plan_count_ += 1;
+  if (re_plan_count_ > 2) {
+    updateStatus(NavToPoseStatus::STUCK_RECOVER_FAIL);
+  } else if (std::abs(odom_no_move_count - count) < 2 && count > 10) {
+    updateStatus(NavToPoseStatus::ODOM_NO_MOVE);
+  } else {
+    RCLCPP_INFO(get_logger(), "Try recover behavior successfully!!!");
+    updateStatus(NavToPoseStatus::GOAL_UPDATED);
+  }
 }
 
 }  // namespace nav2_non_bt_navigator

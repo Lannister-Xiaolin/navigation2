@@ -52,18 +52,20 @@
 
 namespace nav2_single_node_navigator {
 
-enum class NavToPoseStatus{
-
+enum class NavToPoseStatus {
   GOAL_UPDATED,
-  PATH_UPDATED, PLAN_PATH_FAILED, GOAL_COLLIDED,
+  PATH_UPDATED,
+  PLAN_PATH_FAILED,
+  GOAL_COLLIDED,
   FOLLOWING,
   ACTION_FAILED,
-  FOLLOW_PATH_ABORTED,ODOM_NO_MOVE,
+  FOLLOW_PATH_ABORTED,
+  ODOM_NO_MOVE,
   FOLLOW_PATH_COLLIDED,
-  CURRENT_STUCK,
+  STUCK_RECOVER_FAIL,
   CURRENT_STUCK_RECOVERY,
   CANCELLED,
-  TF_FAILED,NO_VALID_PATH_FAILED,
+  TF_FAILED,
   SUCCESS
 };
 
@@ -431,14 +433,36 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
   bool OnNavToPoseGoalReceivedCallback(ActionNavToPose::Goal::ConstSharedPtr goal);
   void callback_updated_goal(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void followPathResultCallback(const rclcpp_action::ClientGoalHandle<ActionFollowPath>::WrappedResult &result);
-  bool startFollowPath(const nav_msgs::msg::Path& path);
-  bool startNavToPose(const geometry_msgs::msg::PoseStamped& pose);
-
-  std::array<uint8_t, UUID_SIZE> follow_path_client_goal_id_,nav_to_pose_client_goal_id_;
+  bool startFollowPath(const nav_msgs::msg::Path &path);
+  bool startNavToPose(const geometry_msgs::msg::PoseStamped &pose);
+  //-------------------nav to goal -----------------------------
+  std::array<uint8_t, UUID_SIZE> follow_path_client_goal_id_, nav_to_pose_client_goal_id_;
   rclcpp_action::ClientGoalHandle<ActionFollowPath>::WrappedResult follow_path_client_result_;
   rclcpp_action::Client<ActionFollowPath>::SendGoalOptions follow_path_send_goal_options_;
   rclcpp_action::Client<ActionFollowPath>::SendGoalOptions nav_to_pose_send_goal_options_;
   bool follow_path_working_;
+  NavToPoseStatus nav_to_pose_status_, prev_nav_to_pose_status_;
+  geometry_msgs::msg::PoseStamped global_pose_, local_pose_;
+  rclcpp::Time last_check_time_{0, 0}, current_time_{0, 0},
+  current_path_time_{0, 0},task_start_time_{0,0};
+  nav_msgs::msg::Path current_planned_path_;
+  bool can_try_recover_;
+  int re_plan_count_;
+  double max_back_dis_,max_back_vel_,max_back_angular_vel_,path_fail_stuck_confirm_range_,follow_fail_stuck_confirm_range_;
+  std::shared_ptr<const nav2_msgs::action::NavigateToPose::Goal> navigate_to_pose_goal_;
+  std::shared_ptr<nav2_msgs::action::NavigateToPose::Result> navigate_to_pose_result_;
+  std::shared_ptr<nav2_msgs::action::NavigateToPose::Feedback> navigate_to_pose_feedback_;
+  std::shared_ptr<rclcpp::Client<nav2_msgs::srv::ClearCostmapAroundRobot>> clear_local_around_client_;
+  void updateStatus(NavToPoseStatus nav_to_pose_status);
+  bool updateGlobalPose();
+  void followingDeal();
+  void pathUpdatedDeal();
+  void goalUpdatedDeal();
+  void planPathFailedDeal();
+  bool isCurrentStuck(double search_range);
+  bool isCurrentLocalStuck(double search_range);
+  bool isGoalCollided();
+  void currentStuckRecoveryDeal();
 };
 
 }  // namespace nav2_single_node_navigator
