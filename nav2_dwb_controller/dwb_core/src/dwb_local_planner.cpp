@@ -119,7 +119,8 @@ void DWBLocalPlanner::configure(
     dwb_plugin_name_ + ".short_circuit_trajectory_evaluation",
     short_circuit_trajectory_evaluation_);
   node->get_parameter(dwb_plugin_name_ + ".shorten_transformed_plan", shorten_transformed_plan_);
-
+  prune_distance_sq_ = prune_plan_ * prune_plan_;
+  is_map_sq_dist_threshold_init_ = false;
   pub_ = std::make_unique<DWBPublisher>(node, dwb_plugin_name_);
   pub_->on_configure();
 
@@ -462,16 +463,19 @@ DWBLocalPlanner::transformGlobalPlan(
     throw dwb_core::
           PlannerTFException("Unable to transform robot pose into global plan's frame");
   }
+  if (!is_map_sq_dist_threshold_init_){
+    // we'll discard points on the plan that are outside the local costmap
+    nav2_costmap_2d::Costmap2D * costmap = costmap_ros_->getCostmap();
+    double dist_threshold = std::max(costmap->getSizeInCellsX(), costmap->getSizeInCellsY()) *
+        costmap->getResolution() / 2.0;
+    map_sq_dist_threshold_ = dist_threshold * dist_threshold;
+    is_map_sq_dist_threshold_init_ = true;
+  }
 
-  // we'll discard points on the plan that are outside the local costmap
-  nav2_costmap_2d::Costmap2D * costmap = costmap_ros_->getCostmap();
-  double dist_threshold = std::max(costmap->getSizeInCellsX(), costmap->getSizeInCellsY()) *
-    costmap->getResolution() / 2.0;
-  double sq_dist_threshold = dist_threshold * dist_threshold;
-
+  double& sq_dist_threshold = map_sq_dist_threshold_;
   // If prune_plan is enabled (it is by default) then we want to restrict the
   // plan to distances within that range as well.
-  double sq_prune_dist = prune_distance_ * prune_distance_;
+  double& sq_prune_dist = prune_distance_sq_;
 
   // Set the maximum distance we'll include points before getting to the part
   // of the path where the robot is located (the start of the plan). Basically,

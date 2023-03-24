@@ -196,8 +196,8 @@ protected:
   virtual nav_2d_msgs::msg::Path2D transformGlobalPlan(
     const nav_2d_msgs::msg::Pose2DStamped & pose);
   nav_2d_msgs::msg::Path2D global_plan_;  ///< Saved Global Plan
-  bool prune_plan_;
-  double prune_distance_;
+  bool prune_plan_,is_map_sq_dist_threshold_init_;
+  double prune_distance_,prune_distance_sq_,map_sq_dist_threshold_;
   bool debug_trajectory_details_;
   rclcpp::Duration transform_tolerance_{0, 0};
   bool shorten_transformed_plan_;
