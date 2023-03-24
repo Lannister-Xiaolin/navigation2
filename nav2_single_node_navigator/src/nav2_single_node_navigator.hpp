@@ -430,7 +430,7 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
 //  void onNavToPoseLoop();
 //  void onNavToPosePreempt(ActionNavToPose::Goal::ConstSharedPtr goal);
 //  void goalNavToPoseCompleted(ActionNavToPose::Result::SharedPtr result);
-  bool OnNavToPoseGoalReceivedCallback(ActionNavToPose::Goal::ConstSharedPtr goal);
+//  bool OnNavToPoseGoalReceivedCallback(ActionNavToPose::Goal::ConstSharedPtr goal);
   void callback_updated_goal(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
   void followPathResultCallback(const rclcpp_action::ClientGoalHandle<ActionFollowPath>::WrappedResult &result);
   bool startFollowPath(const nav_msgs::msg::Path &path);
@@ -439,7 +439,7 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
   std::array<uint8_t, UUID_SIZE> follow_path_client_goal_id_, nav_to_pose_client_goal_id_;
   rclcpp_action::ClientGoalHandle<ActionFollowPath>::WrappedResult follow_path_client_result_;
   rclcpp_action::Client<ActionFollowPath>::SendGoalOptions follow_path_send_goal_options_;
-  rclcpp_action::Client<ActionFollowPath>::SendGoalOptions nav_to_pose_send_goal_options_;
+//  rclcpp_action::Client<ActionFollowPath>::SendGoalOptions nav_to_pose_send_goal_options_;
   bool follow_path_working_;
   NavToPoseStatus nav_to_pose_status_, prev_nav_to_pose_status_;
   geometry_msgs::msg::PoseStamped global_pose_, local_pose_;
@@ -451,7 +451,7 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
   double max_back_dis_,max_back_vel_,max_back_angular_vel_,path_fail_stuck_confirm_range_,follow_fail_stuck_confirm_range_;
   std::shared_ptr<const nav2_msgs::action::NavigateToPose::Goal> navigate_to_pose_goal_;
   std::shared_ptr<nav2_msgs::action::NavigateToPose::Result> navigate_to_pose_result_;
-  std::shared_ptr<nav2_msgs::action::NavigateToPose::Feedback> navigate_to_pose_feedback_;
+//  std::shared_ptr<nav2_msgs::action::NavigateToPose::Feedback> navigate_to_pose_feedback_;
   std::shared_ptr<rclcpp::Client<nav2_msgs::srv::ClearCostmapAroundRobot>> clear_local_around_client_;
   void updateStatus(NavToPoseStatus nav_to_pose_status);
   bool updateGlobalPose();

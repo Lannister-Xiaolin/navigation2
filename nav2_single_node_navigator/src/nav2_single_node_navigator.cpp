@@ -15,26 +15,19 @@
 
 #include <chrono>
 #include <cmath>
-#include <iomanip>
-#include <iostream>
 #include <limits>
-#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
 #include <utility>
-
 #include "builtin_interfaces/msg/duration.hpp"
-#include "nav2_util/costmap.hpp"
 #include "nav2_util/node_utils.hpp"
 #include "nav2_costmap_2d/cost_values.hpp"
 #include "nav2_core/exceptions.hpp"
 #include "nav_2d_utils/conversions.hpp"
 #include "nav_2d_utils/tf_help.hpp"
-#include "nav2_util/node_utils.hpp"
 #include "nav2_util/geometry_utils.hpp"
 #include "nav2_single_node_navigator.hpp"
-#include "nav2_costmap_2d/cost_values.hpp"
 
 using namespace std::chrono_literals;
 using namespace std::placeholders;
@@ -120,12 +113,7 @@ Nav2SingleNodeNavigator::Nav2SingleNodeNavigator()
 
   // Launch a thread to run the costmap node
   local_costmap_thread_ = std::make_unique<nav2_util::NodeThread>(local_costmap_ros_);
-  //-------to be parameterized params
-  max_back_angular_vel_ = 0.15; // stuck recover max back angular vel
-  max_back_dis_ = 0.31;
-  max_back_vel_ = 0.1;
-  path_fail_stuck_confirm_range_ = 0.06;
-  follow_fail_stuck_confirm_range_ = 0.11;
+
 }
 
 Nav2SingleNodeNavigator::~Nav2SingleNodeNavigator() {
@@ -350,7 +338,12 @@ Nav2SingleNodeNavigator::on_configure(const rclcpp_lifecycle::State &state) {
 
   clear_local_around_client_ = node->create_client<nav2_msgs::srv::ClearCostmapAroundRobot>(
       "/local_costmap/clear_around_local_costmap");
-
+  //-------to be parameterized params
+  max_back_angular_vel_ = 0.15; // stuck recover max back angular vel
+  max_back_dis_ = 0.31;
+  max_back_vel_ = 0.1;
+  path_fail_stuck_confirm_range_ = 0.06;
+  follow_fail_stuck_confirm_range_ = 0.11;
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -538,7 +531,7 @@ bool Nav2SingleNodeNavigator::validatePath(
     const geometry_msgs::msg::PoseStamped &goal,
     const nav_msgs::msg::Path &path,
     const std::string &planner_id) {
-  if (path.poses.size() == 0) {
+  if (path.poses.empty()) {
     RCLCPP_WARN(
         get_logger(), "Planning algorithm %s failed to generate a valid"
                       " path to (%.2f, %.2f)", planner_id.c_str(),
@@ -574,7 +567,7 @@ Nav2SingleNodeNavigator::computePlanThroughPoses() {
 
     getPreemptedGoalIfRequested(action_server_path_to_poses_, goal);
 
-    if (goal->goals.size() == 0) {
+    if (goal->goals.empty()) {
       RCLCPP_WARN(
           get_logger(),
           "Compute path through poses requested a plan with no viapoint poses, returning.");
@@ -1094,7 +1087,7 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
             clear_local_around_client_->async_send_request(request);
             std::this_thread::sleep_for(500ms);
             geometry_msgs::msg::Twist twist;
-            twist.angular.z = 0.1;
+            twist.angular.z = -0.1;
             twist.angular.x = -0.03;
             vel_publisher_->publish(twist);
             std::this_thread::sleep_for(100ms);
@@ -1107,7 +1100,7 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
             break;
           }
         } else {
-          RCLCPP_WARN(get_logger(), "Current position is not stucked. Maybe controller is not able to compute path!!!");
+          RCLCPP_WARN(get_logger(), "Current position is not stucked. Maybe controller is not able to compute path !!!!!!");
           break;
         }
       } else if (nav_to_pose_status_ == NavToPoseStatus::ODOM_NO_MOVE) {
@@ -1157,15 +1150,15 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
   current_planned_path_ = nav_msgs::msg::Path();
 }
 
-bool Nav2SingleNodeNavigator::OnNavToPoseGoalReceivedCallback(ActionNavToPose::Goal::ConstSharedPtr goal) {
-
-  RCLCPP_INFO(
-      get_logger(), "Begin navigating from current location to (%.2f, %.2f)",
-      goal->pose.pose.position.x, goal->pose.pose.position.y);
-  //navigator.hpp 239 line means there are two action, need to
-  // check for avoid running two different action in the same time
-  return true;
-}
+//bool Nav2SingleNodeNavigator::OnNavToPoseGoalReceivedCallback(ActionNavToPose::Goal::ConstSharedPtr goal) {
+//
+//  RCLCPP_INFO(
+//      get_logger(), "Begin navigating from current location to (%.2f, %.2f)",
+//      goal->pose.pose.position.x, goal->pose.pose.position.y);
+//  //navigator.hpp 239 line means there are two action, need to
+//  // check for avoid running two different action in the same time
+//  return true;
+//}
 bool Nav2SingleNodeNavigator::computePathForNavToPose(const std::string &planner_id,
                                                       const geometry_msgs::msg::PoseStamped &goal_pose,
                                                       nav_msgs::msg::Path &path) {
