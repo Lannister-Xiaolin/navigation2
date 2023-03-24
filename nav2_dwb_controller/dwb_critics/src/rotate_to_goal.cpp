@@ -101,7 +101,7 @@ double RotateToGoalCritic::scoreTrajectory(const dwb_msgs::msg::Trajectory2D & t
     return 0.0;
   } else if (!rotating_) {
     double speed_sq = hypot_sq(traj.velocity.x, traj.velocity.y);
-    if (speed_sq >= current_xy_speed_sq_) {
+    if (speed_sq >= (current_xy_speed_sq_+5e-5)) {
       throw dwb_core::IllegalTrajectoryException(name_, "Not slowing down near goal.");
     }
     return speed_sq * slowing_factor_ + scoreRotation(traj);
