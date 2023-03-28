@@ -1055,11 +1055,13 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
   int tf_failed_retry_count = 0;
   can_try_recover_ = true;
   current_planned_path_ = nav_msgs::msg::Path();
+  int unknown_follow_path_fail_retry = 0;
   try {
     while (rclcpp::ok()) {
       current_time_ = now();
       if (nav_to_pose_status_ == NavToPoseStatus::GOAL_UPDATED) {
         goalUpdatedDeal();
+        unknown_follow_path_fail_retry = std::max(unknown_follow_path_fail_retry - 1, 0);
       } else if (nav_to_pose_status_ == NavToPoseStatus::PATH_UPDATED) {
         pathUpdatedDeal();
       } else if (nav_to_pose_status_ == NavToPoseStatus::PLAN_PATH_FAILED) {
@@ -1100,8 +1102,17 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
             break;
           }
         } else {
-          RCLCPP_WARN(get_logger(), "Current position is not stucked. Maybe controller is not able to compute path !!!!!!");
-          break;
+          // only continual fail with same reason will lead to unknown_follow_path_fail_retry increase;
+          //todo optimize
+          unknown_follow_path_fail_retry += 2;
+          if (unknown_follow_path_fail_retry < 3) {
+            RCLCPP_WARN(get_logger(),
+                        "Current position is not stuck. Maybe controller is not able to compute path retry!!!!!!");
+            updateStatus(NavToPoseStatus::GOAL_UPDATED);
+          } else {
+            RCLCPP_WARN(get_logger(), "Current position is not stuck. reach max retry times, abort!!!!!!");
+            break;
+          }
         }
       } else if (nav_to_pose_status_ == NavToPoseStatus::ODOM_NO_MOVE) {
         RCLCPP_WARN(get_logger(), "Look like robot is not moving!!!");
@@ -1135,7 +1146,7 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
     RCLCPP_ERROR(get_logger(), "Unknown Error!!!! %s", ex.what());
     action_server_nav_to_pos_->terminate_current(navigate_to_pose_result_);
   }
-  if (follow_path_working_){
+  if (follow_path_working_) {
     action_client_follow_path_->async_cancel_all_goals();
   }
   if (nav_to_pose_status_ == NavToPoseStatus::SUCCESS) {
@@ -1306,7 +1317,7 @@ void Nav2SingleNodeNavigator::pathUpdatedDeal() {
 }
 void Nav2SingleNodeNavigator::goalUpdatedDeal() {
   if (computePathForNavToPose("GridBased", navigate_to_pose_goal_->pose, current_planned_path_)) {
-    re_plan_count_ = 0;
+    fail_re_plan_count_ = 0;
     updateStatus(NavToPoseStatus::PATH_UPDATED);
   } else updateStatus(NavToPoseStatus::PLAN_PATH_FAILED);
 }
@@ -1482,7 +1493,7 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
     if (rclcpp::ok()) {
       vel_publisher_->publish(twist);
       std::this_thread::sleep_for(100ms);
-      if (odom_sub_->getTwist().x == 0) {
+      if (abs(odom_sub_->getTwist().x) <= 0.001) {
         odom_no_move_count++;
       }
     }
@@ -1490,8 +1501,8 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
   twist.angular.z = 0;
   twist.linear.x = 0;
   vel_publisher_->publish(twist);
-  re_plan_count_ += 1;
-  if (re_plan_count_ > 2) {
+  fail_re_plan_count_ += 1;
+  if (fail_re_plan_count_ > 2) {
     updateStatus(NavToPoseStatus::STUCK_RECOVER_FAIL);
   } else if (std::abs(odom_no_move_count - count) < 2 && count > 10) {
     updateStatus(NavToPoseStatus::ODOM_NO_MOVE);
