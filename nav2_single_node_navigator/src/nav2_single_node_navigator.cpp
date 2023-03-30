@@ -1056,6 +1056,7 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
   can_try_recover_ = true;
   current_planned_path_ = nav_msgs::msg::Path();
   int unknown_follow_path_fail_retry = 0;
+  fail_re_plan_count_ = 0;
   try {
     while (rclcpp::ok()) {
       current_time_ = now();
@@ -1405,6 +1406,10 @@ bool Nav2SingleNodeNavigator::isGoalCollided() {
   return false;
 }
 void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
+  if (fail_re_plan_count_ > 2) {
+    updateStatus(NavToPoseStatus::STUCK_RECOVER_FAIL);
+    return;
+  }
   if (!updateGlobalPose()) return;
   action_client_follow_path_->async_cancel_all_goals();
   unsigned int mx = 0, my = 0, final_x = 0, final_y = 0;
@@ -1454,8 +1459,6 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
   }
   geometry_msgs::msg::PoseStamped pose_stamped = global_pose_;
   global_costmap_->mapToWorld(final_x, final_y, pose_stamped.pose.position.x, pose_stamped.pose.position.y);
-  RCLCPP_INFO(get_logger(),"Recover pos in global link: x: %.2f  y: %.2f ",
-              pose_stamped.pose.position.x,pose_stamped.pose.position.y);
   nav2_util::transformPoseInTargetFrame(pose_stamped, pose_stamped, *tf_, "base_link", 0.2);
   auto dis = std::hypot(pose_stamped.pose.position.x, pose_stamped.pose.position.y);
   auto angle = std::atan2(pose_stamped.pose.position.y, pose_stamped.pose.position.x);
@@ -1512,9 +1515,7 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
   twist.linear.x = 0;
   vel_publisher_->publish(twist);
   fail_re_plan_count_ += 1;
-  if (fail_re_plan_count_ > 2) {
-    updateStatus(NavToPoseStatus::STUCK_RECOVER_FAIL);
-  } else if (std::abs(odom_no_move_count - count) < 2 && count > 10) {
+  if (std::abs(odom_no_move_count - count) < 2 && count > 10) {
     updateStatus(NavToPoseStatus::ODOM_NO_MOVE);
   } else {
     RCLCPP_INFO(get_logger(), "Try recover behavior successfully!!!");
