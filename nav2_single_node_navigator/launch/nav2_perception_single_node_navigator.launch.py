@@ -60,7 +60,8 @@ def generate_launch_description():
         output='screen',
         emulate_tty=True,  # https://github.com/ros2/launch/issues/188
         parameters=[configured_params],
-        remappings=remappings)
+        remappings=remappings,
+        arguments=["-ros-args --disable-rosout-logs"])
 
     # start_map_saver_server_cmd = Node(
     #     package='nav2_map_server',
