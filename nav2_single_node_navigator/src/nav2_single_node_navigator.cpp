@@ -339,7 +339,7 @@ Nav2SingleNodeNavigator::on_configure(const rclcpp_lifecycle::State &state) {
   clear_local_around_client_ = node->create_client<nav2_msgs::srv::ClearCostmapAroundRobot>(
       "/local_costmap/clear_around_local_costmap");
   //-------to be parameterized params
-  max_back_angular_vel_ = 0.15; // stuck recover max back angular vel
+  max_back_angular_vel_ = 0.35; // stuck recover max back angular vel
   max_back_dis_ = 0.31;
   max_back_vel_ = 0.1;
   path_fail_stuck_confirm_range_ = 0.06;
@@ -1341,11 +1341,11 @@ bool Nav2SingleNodeNavigator::isCurrentStuck(double search_range) {
       std::vector<int> x_offset = {0, 0, 0, -i, i, i, -i, i, -i};
       std::vector<int> y_offset = {0, i, -i, 0, 0, i, -i, -i, i};
       for (int j = 0; j < 9; ++j) {
-        unsigned int x = static_cast<int>(mx) + x_offset[i];
-        unsigned int y = static_cast<int>(my) + y_offset[i];
+        unsigned int x = static_cast<int>(mx) + x_offset[j];
+        unsigned int y = static_cast<int>(my) + y_offset[j];
         auto value1 = global_costmap_->getCost(x, y);
         auto condition1 =
-            value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value1 == nav2_costmap_2d::LETHAL_OBSTACLE;
+            ((value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value1 == nav2_costmap_2d::LETHAL_OBSTACLE));
         if (condition1) {
           return true;
         }
@@ -1367,11 +1367,11 @@ bool Nav2SingleNodeNavigator::isCurrentLocalStuck(double search_range) {
       std::vector<int> x_offset = {0, 0, 0, -i, i, i, -i, i, -i};
       std::vector<int> y_offset = {0, i, -i, 0, 0, i, -i, -i, i};
       for (int j = 0; j < 9; ++j) {
-        unsigned int x = static_cast<int>(mx) + x_offset[i];
-        unsigned int y = static_cast<int>(my) + y_offset[i];
+        unsigned int x = static_cast<int>(mx) + x_offset[j];
+        unsigned int y = static_cast<int>(my) + y_offset[j];
         auto value1 = local_costmap_ros_->getCostmap()->getCost(x, y);
         auto condition1 =
-            value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value1 == nav2_costmap_2d::LETHAL_OBSTACLE;
+            ((value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value1 == nav2_costmap_2d::LETHAL_OBSTACLE));
         if (condition1) {
           return true;
         }
@@ -1391,13 +1391,13 @@ bool Nav2SingleNodeNavigator::isGoalCollided() {
     auto value3 = global_costmap_->getCost(mx - 1, my);
     auto value4 = global_costmap_->getCost(mx, my + 1);
     auto condition1 =
-        value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value1 == nav2_costmap_2d::LETHAL_OBSTACLE;
+        ((value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value1 == nav2_costmap_2d::LETHAL_OBSTACLE));
     auto condition2 =
-        value2 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value2 == nav2_costmap_2d::LETHAL_OBSTACLE;
+        ((value2 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value2 == nav2_costmap_2d::LETHAL_OBSTACLE));
     auto condition3 =
-        value3 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value3 == nav2_costmap_2d::LETHAL_OBSTACLE;
+        ((value3== nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value3 == nav2_costmap_2d::LETHAL_OBSTACLE));
     auto condition4 =
-        value4 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value4 == nav2_costmap_2d::LETHAL_OBSTACLE;
+        ((value4 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value4 == nav2_costmap_2d::LETHAL_OBSTACLE));
     if (condition1 || condition2 || condition3 || condition4) {
       return true;
     }
@@ -1427,14 +1427,20 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
     for (int j = 0; j < 9; ++j) {
       final_x = static_cast<int>(mx) + x_offset[j];
       final_y = static_cast<int>(my) + y_offset[j];
-      auto value = global_costmap_->getCost(final_x, final_y);
+      auto value = std::max(global_costmap_->getCost(final_x, final_y+1),global_costmap_->getCost(final_x, final_y-1));
+      auto value2 = std::max(global_costmap_->getCost(final_x-1, final_y),global_costmap_->getCost(final_x+1, final_y));
+      value = std::max(value,value2);
 //      RCLCPP_INFO(get_logger(),
-//                  "  mx: %u  my:  %u  final_x: %u  final_y:  %u value:%u",
-//                  mx,
-//                  my,
+//                  "cur: %.2f %.2f    final_x: %u  final_y:  %u value:%u",global_pose_.pose.position.x, global_pose_.pose.position.y,
 //                  final_x,
 //                  final_y,value);
       if (value < nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value == nav2_costmap_2d::NO_INFORMATION) {
+//        RCLCPP_INFO(get_logger(),
+//            "cur: %.2f %.2f  mx: %u  my:  %u  final_x: %u  final_y:  %u value:%u",global_pose_.pose.position.x, global_pose_.pose.position.y,
+//            mx,
+//            my,
+//            final_x,
+//            final_y,value);
         final_recover_pos = true;
         break;
       }
@@ -1448,6 +1454,8 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
   }
   geometry_msgs::msg::PoseStamped pose_stamped = global_pose_;
   global_costmap_->mapToWorld(final_x, final_y, pose_stamped.pose.position.x, pose_stamped.pose.position.y);
+  RCLCPP_INFO(get_logger(),"Recover pos in global link: x: %.2f  y: %.2f ",
+              pose_stamped.pose.position.x,pose_stamped.pose.position.y);
   nav2_util::transformPoseInTargetFrame(pose_stamped, pose_stamped, *tf_, "base_link", 0.2);
   auto dis = std::hypot(pose_stamped.pose.position.x, pose_stamped.pose.position.y);
   auto angle = std::atan2(pose_stamped.pose.position.y, pose_stamped.pose.position.x);
@@ -1473,11 +1481,13 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
       angular_vel = max_back_angular_vel_;
     }
   }
-  auto count = static_cast<int>(((dis + 0.1)) * 10 / 0.1);
+  auto count = static_cast<int>(((dis + 0.1)) * 10 / max_back_vel_);
   geometry_msgs::msg::Twist twist;
   twist.angular.z = angular_vel;
   twist.linear.x = vel;
   int odom_no_move_count = 0;
+  RCLCPP_INFO(get_logger(),"Recover pos in base link: x: %.2f  y: %.2f target vel: %.2f  angular: %.2f",
+              pose_stamped.pose.position.x,pose_stamped.pose.position.y,vel,angular_vel);
 //  RCLCPP_INFO(get_logger(),
 //              "Find relative recover position:x:%.2f  y: %.2f  mx: %u  my:  %u  final_x: %u  final_y:  %u angular_vel: %.2f vel: %.2f  angle: %.2f",
 //              pose_stamped.pose.position.x,

@@ -29,42 +29,39 @@ from nav2_common.launch import RewrittenYaml
 def generate_launch_description():
     namespace = LaunchConfiguration('namespace')
     use_sim_time = LaunchConfiguration('use_sim_time')
-    autostart = LaunchConfiguration('autostart',default=True)
+    autostart = LaunchConfiguration('autostart', default=True)
     default_file = os.path.join(
         get_package_share_directory('nav2_single_node_navigator'),
-        'param',
-        'novabot.yaml')
-    params_file = LaunchConfiguration('params_file',default=default_file)
+        'param', 'novabot.yaml')
+    params_file = LaunchConfiguration('params_file', default=default_file)
     map_yaml_file = LaunchConfiguration('map')
     map_dir = LaunchConfiguration(
-        'map',
-        default=os.path.join(
+        'map', default=os.path.join(
             get_package_share_directory('nav2_single_node_navigator'),
-            'map',
-            'empty_map.yaml'))
+            'map', 'empty_map.yaml'))
 
     param_substitutions = {
         'use_sim_time': use_sim_time,
         'autostart': autostart}
-
-    lifecycle_nodes = [ 'nav2_single_node_navigator','map_server']
-
-
     configured_params = RewrittenYaml(
         source_file=params_file,
         root_key=namespace,
         param_rewrites=param_substitutions,
         convert_types=True)
+
+    lifecycle_nodes = ['nav2_single_node_navigator', 'map_server']
+
+    remappings = [('/tf', 'tf'),
+                  ('/tf_static', 'tf_static')]
+
     start_nav2_single_node_navigator_cmd = Node(
         package='nav2_single_node_navigator',
         executable='nav2_single_node_navigator',
         output='screen',
         emulate_tty=True,  # https://github.com/ros2/launch/issues/188
-        parameters=[configured_params])
+        parameters=[configured_params],
+        remappings=remappings)
 
-    # autostart = True
-    remappings = [('/tf', 'tf'),
-                  ('/tf_static', 'tf_static')]
     # start_map_saver_server_cmd = Node(
     #     package='nav2_map_server',
     #     executable='map_saver_server',
@@ -79,8 +76,8 @@ def generate_launch_description():
         executable='map_server',
         name='map_server',
         output='screen',
-        parameters=[{"yaml_filename":map_yaml_file,
-            'use_sim_time': use_sim_time}],
+        parameters=[{"yaml_filename": map_yaml_file,
+                     'use_sim_time': use_sim_time}],
         remappings=remappings)
     start_lifecycle_manager_cmd = Node(
         package='nav2_lifecycle_manager',
@@ -107,7 +104,7 @@ def generate_launch_description():
             description='Full path to param file to load'),
         DeclareLaunchArgument(
             'use_sim_time',
-            default_value='true',
+            default_value='False',
             description='Use simulation (Gazebo) clock if true'),
         declare_namespace_cmd,
         start_map_server_cmd,
