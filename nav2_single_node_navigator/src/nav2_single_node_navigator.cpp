@@ -1193,7 +1193,7 @@ bool Nav2SingleNodeNavigator::computePathForNavToPose(const std::string &planner
   }
   // Publish the plan for visualization purposes
   publishPlan(path);
-  RCLCPP_INFO(get_logger(), "---Path size %zu  frame: %s", path.poses.size(), path.header.frame_id.c_str());
+//  RCLCPP_INFO(get_logger(), "---Path size %zu  frame: %s", path.poses.size(), path.header.frame_id.c_str());
   return true;
 }
 void
@@ -1304,7 +1304,11 @@ void Nav2SingleNodeNavigator::followingDeal() {
       last_check_time_ = current_time_;
       auto path_diff_time = current_time_ - current_path_time_;
       if (isPathCollisionWithObstacle(current_planned_path_) || path_diff_time > tf2::durationFromSec(120.0)) {
-        updateStatus(NavToPoseStatus::GOAL_UPDATED);
+        if (isGoalCollided()) {
+          updateStatus(NavToPoseStatus::GOAL_COLLIDED);
+        }else{
+          updateStatus(NavToPoseStatus::GOAL_UPDATED);
+        }
       }
     }
   }
