@@ -58,9 +58,9 @@ nav2_single_node_navigator:
       debug_trajectory_details: False
       min_vel_x: 0.0
       min_vel_y: 0.0
-      max_vel_x: 0.6
+      max_vel_x: 0.5
       max_vel_y: 0.0
-      max_vel_theta: 1.0
+      max_vel_theta: 1.5705
       min_speed_xy: 0.0
       max_speed_xy: 0.6
       min_speed_theta: 0.0
