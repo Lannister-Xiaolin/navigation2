@@ -59,9 +59,10 @@ nav2_single_node_navigator:
        max_angular_accel: 1.8
        simulate_ahead_time: 1.0
        debug_trajectory_details: False
+       prune_distance: 0.8
        min_vel_x: 0.0
        min_vel_y: 0.0
-       max_vel_x: 0.15
+       max_vel_x: 0.50
        max_vel_y: 0.0
        max_vel_theta: 1.0
        min_speed_xy: 0.0
@@ -78,7 +79,7 @@ nav2_single_node_navigator:
        vx_samples: 15
        vy_samples: 0
        vtheta_samples: 20
-       sim_time: 2.5
+       sim_time: 1.5
        linear_granularity: 0.05
        angular_granularity: 0.025
        transform_tolerance: 0.2
@@ -86,8 +87,8 @@ nav2_single_node_navigator:
        trans_stopped_velocity: 0.25
        short_circuit_trajectory_evaluation: True
        stateful: True
-       critics: [ "RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathDist", "GoalDist" ]
-       BaseObstacle.scale: 0.2
+       critics: [ "RotateToGoal", "Oscillation", "BaseObstacle","PreferForwardCritic", "GoalAlign", "PathDist", "GoalDist" ]
+       BaseObstacle.scale: 0.05
 #       PathAlign.scale: 32.0
 #       PathAlign.forward_point_distance: 0.2
        GoalAlign.scale: 24.0
@@ -95,7 +96,7 @@ nav2_single_node_navigator:
        PathDist.scale: 32.0
        GoalDist.scale: 32.0
        RotateToGoal.scale: 32.0
-       RotateToGoal.slowing_factor: 5.0
+       RotateToGoal.slowing_factor: 3.0
        RotateToGoal.lookahead_time: 0.5
 #      #  teb----------------------
 #      plugin: "teb_local_planner::TebLocalPlannerROS"
@@ -142,7 +143,7 @@ nav2_single_node_navigator:
       max_angular_accel: 1.5
       simulate_ahead_time: 1.0
       debug_trajectory_details: True
-      desired_linear_vel: 0.5
+      desired_linear_vel: 0.35
       max_linear_accel: 2.0
       max_linear_decel: 2.5
       lookahead_dist: 0.6
@@ -188,7 +189,7 @@ local_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        inflation_radius: 0.251
+        inflation_radius: 0.51
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
@@ -271,7 +272,7 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        inflation_radius: 0.251
+        inflation_radius: 0.51
       always_send_full_costmap: True
   global_costmap_client:
     ros__parameters:
