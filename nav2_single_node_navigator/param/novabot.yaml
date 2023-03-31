@@ -56,15 +56,15 @@ nav2_single_node_navigator:
        primary_controller: "dwb_core::DWBLocalPlanner"
        angular_dist_threshold: 0.88
        forward_sampling_distance: 0.30
-       rotate_to_heading_angular_vel: 1.5
+       rotate_to_heading_angular_vel: 0.9
        max_angular_accel: 1.8
        simulate_ahead_time: 1.0
        debug_trajectory_details: False
        min_vel_x: 0.0
        min_vel_y: 0.0
-       max_vel_x: 0.6
+       max_vel_x: 0.5
        max_vel_y: 0.0
-       max_vel_theta: 1.17
+       max_vel_theta: 1.5707
        min_speed_xy: 0.0
        max_speed_xy: 0.6
        min_speed_theta: 0.0
@@ -79,7 +79,7 @@ nav2_single_node_navigator:
        vx_samples: 15
        vy_samples: 0
        vtheta_samples: 20
-       sim_time: 2.5
+       sim_time: 1.5
        linear_granularity: 0.05
        angular_granularity: 0.025
        transform_tolerance: 0.2
@@ -139,7 +139,7 @@ nav2_single_node_navigator:
       primary_controller: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
       angular_dist_threshold: 0.1745
       forward_sampling_distance: 0.50
-      rotate_to_heading_angular_vel: 1.0
+      rotate_to_heading_angular_vel: 0.9
       max_angular_accel: 1.5
       simulate_ahead_time: 1.0
       debug_trajectory_details: True
