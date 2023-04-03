@@ -58,9 +58,9 @@ nav2_single_node_navigator:
       debug_trajectory_details: False
       min_vel_x: 0.0
       min_vel_y: 0.0
-      max_vel_x: 0.5
+      max_vel_x: 0.4
       max_vel_y: 0.0
-      max_vel_theta: 1.5707
+      max_vel_theta: 2.0
       min_speed_xy: 0.0
       max_speed_xy: 0.5
       min_speed_theta: 0.0
@@ -84,14 +84,14 @@ nav2_single_node_navigator:
       short_circuit_trajectory_evaluation: True
       stateful: True
       critics: [ "RotateToGoal", "Oscillation", "BaseObstacle","PreferForwardCritic", "GoalAlign", "PathDist", "GoalDist" ]
-      BaseObstacle.scale: 0.05
+      BaseObstacle.scale: 0.03
       #      PathAlign.scale: 32.0
       #      PathAlign.forward_point_distance: 0.2
       GoalAlign.scale: 24.0
       GoalAlign.forward_point_distance: 0.2
       PathDist.scale: 32.0
       GoalDist.scale: 32.0
-      PreferForwardCritic.scale: 0.5
+      PreferForwardCritic.scale: 0.3
       RotateToGoal.scale: 32.0
       RotateToGoal.slowing_factor: 3.0
       RotateToGoal.lookahead_time: 0.5
