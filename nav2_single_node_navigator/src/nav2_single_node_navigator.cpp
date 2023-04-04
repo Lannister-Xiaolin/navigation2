@@ -1079,14 +1079,14 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
           || nav_to_pose_status_ == NavToPoseStatus::FOLLOW_PATH_ABORTED) {
         if (isCurrentStuck(follow_fail_stuck_confirm_range_)) {
           updateStatus(NavToPoseStatus::CURRENT_STUCK_RECOVERY);
-        } else if (isCurrentLocalStuck(follow_fail_stuck_confirm_range_)) {
+        } else if (isCurrentLocalStuck(path_fail_stuck_confirm_range_)) {
           RCLCPP_WARN(get_logger(),
                       "Local cost map and global cost map is different, some obstacle is not in global cost map!!!");
           if (clear_local_around_client_->wait_for_service(200ms)) {
             RCLCPP_WARN(get_logger(), "Just clear around costmap and move very small distance!!!");
             nav2_msgs::srv::ClearCostmapAroundRobot::Request::SharedPtr
                 request = std::make_shared<nav2_msgs::srv::ClearCostmapAroundRobot::Request>();
-            request->reset_distance = 0.4;
+            request->reset_distance = 0.6;
             clear_local_around_client_->async_send_request(request);
             std::this_thread::sleep_for(500ms);
             geometry_msgs::msg::Twist twist;
@@ -1097,7 +1097,7 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
             twist.angular.z = 0.0;
             twist.angular.x = 0.0;
             vel_publisher_->publish(twist);
-            updateStatus(NavToPoseStatus::GOAL_UPDATED);
+            updateStatus(NavTo PoseStatus::GOAL_UPDATED);
           } else {
             RCLCPP_ERROR(get_logger(), "/local_costmap/clear_around_local_costmap service is not ready, stop task!!!");
             break;
@@ -1433,12 +1433,17 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
   for (int i = 1; i < search_range; ++i) {
     std::vector<int> x_offset = {0, 0, 0, -i, i, i, -i, i, -i};
     std::vector<int> y_offset = {0, i, -i, 0, 0, i, -i, -i, i};
+    unsigned char value = 0;
     for (int j = 0; j < 9; ++j) {
       final_x = static_cast<int>(mx) + x_offset[j];
       final_y = static_cast<int>(my) + y_offset[j];
-      auto value = std::max(global_costmap_->getCost(final_x, final_y+1),global_costmap_->getCost(final_x, final_y-1));
-      auto value2 = std::max(global_costmap_->getCost(final_x-1, final_y),global_costmap_->getCost(final_x+1, final_y));
-      value = std::max(value,value2);
+      for (int k = -2; k < 2; ++k) {
+        for (int l = -2; l < 2; ++l) {
+          unsigned int sample_x = static_cast<int>(final_x)+l;
+          unsigned int sample_y = static_cast<int>(final_y)+k;
+          value = std::max(value,global_costmap_->getCost(sample_x, sample_y));
+        }
+      }
 //      RCLCPP_INFO(get_logger(),
 //                  "cur: %.2f %.2f    final_x: %u  final_y:  %u value:%u",global_pose_.pose.position.x, global_pose_.pose.position.y,
 //                  final_x,
@@ -1475,6 +1480,7 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
   } else {
     vel = -max_back_vel_;
   }
+  if (dis<0.05) vel=0;
   if (abs_angle > 2.5 || abs_angle < 0.5) {
     angular_vel = 0.;
   } else {
@@ -1488,7 +1494,7 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
       angular_vel = max_back_angular_vel_;
     }
   }
-  auto count = static_cast<int>(((dis + 0.1)) * 10 / max_back_vel_);
+  auto count = static_cast<int>(((dis)) * 10 / max_back_vel_);
   geometry_msgs::msg::Twist twist;
   twist.angular.z = angular_vel;
   twist.linear.x = vel;
