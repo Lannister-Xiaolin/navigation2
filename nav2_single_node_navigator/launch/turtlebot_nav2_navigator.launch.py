@@ -32,7 +32,7 @@ def generate_launch_description():
     autostart = LaunchConfiguration('autostart', default=True)
     default_file = os.path.join(
         get_package_share_directory('nav2_single_node_navigator'),
-        'param', 'waffl.yaml')
+        'param', 'waffle.yaml')
     params_file = LaunchConfiguration('params_file', default=default_file)
     map_dir = LaunchConfiguration(
         'map', default=os.path.join(

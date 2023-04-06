@@ -86,12 +86,13 @@ nav2_single_node_navigator:
        trans_stopped_velocity: 0.25
        short_circuit_trajectory_evaluation: True
        stateful: True
-       critics: [ "RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathDist", "GoalDist" ]
-       BaseObstacle.scale: 0.2
+       critics: [ "RotateToGoal", "Oscillation", "PreferForwardCritic", "BaseObstacle", "GoalAlign", "PathDist", "GoalDist" ]
+       BaseObstacle.scale: 0.08
        PathAlign.scale: 12.0
        PathAlign.forward_point_distance: 0.05
        GoalAlign.scale: 24.0
        GoalAlign.forward_point_distance: 0.1
+       PreferForwardCritic.scale: 0.1
        PathDist.scale: 32.0
        GoalDist.scale: 32.0
        RotateToGoal.scale: 32.0
