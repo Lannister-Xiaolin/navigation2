@@ -15,6 +15,9 @@
     <class type="nav2_costmap_2d::RangeSensorLayer" base_class_type="nav2_costmap_2d::Layer">
       <description>A range-sensor (sonar, IR) based obstacle layer for costmap_2d</description>
     </class>
+    <class type="nav2_costmap_2d::CopyLayer" base_class_type="nav2_costmap_2d::Layer">
+      <description>copy data  from other costmap_2d</description>
+    </class>
   </library>
 
   <library path="filters">
