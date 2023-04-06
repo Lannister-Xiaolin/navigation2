@@ -1097,7 +1097,7 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
             twist.angular.z = 0.0;
             twist.angular.x = 0.0;
             vel_publisher_->publish(twist);
-            updateStatus(NavTo PoseStatus::GOAL_UPDATED);
+            updateStatus(NavToPoseStatus::GOAL_UPDATED);
           } else {
             RCLCPP_ERROR(get_logger(), "/local_costmap/clear_around_local_costmap service is not ready, stop task!!!");
             break;
