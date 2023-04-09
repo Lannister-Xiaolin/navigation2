@@ -1,0 +1,41 @@
+{
+"segmentation":  
+  {
+    "0":"lawn", 
+    "1":"road", 
+    "2":"terrain", 
+    "3":"sky", 
+    "4":"person",
+    "5":"animal",
+    "6":"toy",
+    "7":"plant", 
+    "8":"leaf debris", 
+    "9":"vehicle", 
+    "10":"construction",
+    "11":"fire hydrant", 
+    "12":"sprinkler",
+    "13":"bench", 
+    "14":"table", 
+    "15":"chair",
+    "16":"pipe", 
+    "17":"dog poop",
+    "18":"rock", 
+    "19":"bottle", 
+    "20":"trashcan lid",
+    "21":"trashcan",
+    "22":"others"
+  },
+  "detection":
+  {
+    "100":"person", 
+    "101":"obstacle", 
+    "102":"shoes", 
+    "103":"tire", 
+    "104":"leaf debris",
+    "105":"faeces", 
+    "106":"rock",
+    "107":"ignore", 
+    "108":"background"
+  }
+}
+

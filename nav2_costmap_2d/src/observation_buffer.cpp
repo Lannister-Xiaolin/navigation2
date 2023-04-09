@@ -233,7 +233,7 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2 &cloud) 
                                                                          global_frame_cloud.point_step) {
         auto height = (*iter_z) - global_footprint_origin.point.z;
         // Todo 高度过滤需要去掉，比较大的斜坡不好处理
-        if ((*iter_label) > no_lawn_label || height >= min_obstacle_height_) {
+        if ((*iter_label) >= no_lawn_label || height >= min_obstacle_height_) {
           std::copy(iter_global, iter_global + global_frame_cloud.point_step, iter_obs);
           iter_obs += global_frame_cloud.point_step;
           ++point_count;
@@ -246,11 +246,11 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2 &cloud) 
                                                                          global_frame_cloud.point_step) {
         auto height = (*iter_z) - global_footprint_origin.point.z;
         // Todo 高度过滤需要去掉
-        if ((*iter_label) > no_lawn_label || height >= min_obstacle_height_) {
+        if ((*iter_label) >= no_lawn_label || height >= min_obstacle_height_) {
           std::copy(iter_global, iter_global + global_frame_cloud.point_step, iter_obs);
           iter_obs += global_frame_cloud.point_step;
           ++point_count;
-        } else if ((*iter_label) <= no_lawn_label) {
+        } else if ((*iter_label) < no_lawn_label) {
           std::copy(iter_global, iter_global + global_frame_cloud.point_step, iter_empty_obs);
           iter_empty_obs += global_frame_cloud.point_step;
           ++empty_point_count;
@@ -261,7 +261,7 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2 &cloud) 
       sensor_msgs::PointCloud2Iterator<uint8_t> iter_label(global_frame_cloud, "label");
       for (; iter_global != iter_global_end; ++iter_label, ++iter_z, iter_global +=
                                                                          global_frame_cloud.point_step) {
-        if ((*iter_label) > no_lawn_label) {
+        if ((*iter_label) >= no_lawn_label) {
           std::copy(iter_global, iter_global + global_frame_cloud.point_step, iter_obs);
           iter_obs += global_frame_cloud.point_step;
           ++point_count;
@@ -272,11 +272,11 @@ void ObservationBuffer::bufferCloud(const sensor_msgs::msg::PointCloud2 &cloud) 
       sensor_msgs::PointCloud2Iterator<uint8_t> iter_label(global_frame_cloud, "label");
       for (; iter_global != iter_global_end; ++iter_label, ++iter_z, iter_global +=
                                                                          global_frame_cloud.point_step) {
-        if ((*iter_label) > no_lawn_label) {
+        if ((*iter_label) >= no_lawn_label) {
           std::copy(iter_global, iter_global + global_frame_cloud.point_step, iter_obs);
           iter_obs += global_frame_cloud.point_step;
           ++point_count;
-        } else if ((*iter_label) <=no_lawn_label) {
+        } else if ((*iter_label) <no_lawn_label) {
           std::copy(iter_global, iter_global + global_frame_cloud.point_step, iter_empty_obs);
           iter_empty_obs += global_frame_cloud.point_step;
           ++empty_point_count;
