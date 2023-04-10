@@ -144,7 +144,7 @@ CopyLayer::getParameters() {
   node->get_parameter("unknown_cost_value", unknown_cost_value_);
   node->get_parameter("trinary_costmap", trinary_costmap_);
   node->get_parameter("transform_tolerance", temp_tf_tol);
-  node->get_parameter("only_keep_copy_window", only_keep_copy_window_);
+  node->get_parameter(name_ + "." + "only_keep_copy_window", only_keep_copy_window_);
   // Enforce bounds
 //  lethal_threshold_ = std::max(std::min(temp_lethal_threshold, 100), 0);
   map_received_ = false;
