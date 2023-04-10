@@ -96,6 +96,7 @@ Nav2SingleNodeNavigator::Nav2SingleNodeNavigator()
   RCLCPP_INFO(get_logger(), "Creating controller server");
 
   declare_parameter("controller_frequency", 20.0);
+  declare_parameter("max_back_dis", 0.36);
   declare_parameter("progress_checker_plugin", default_progress_checker_id_);
   declare_parameter("goal_checker_plugins", default_goal_checker_ids_);
   declare_parameter("controller_plugins", controller_default_ids_);
@@ -340,7 +341,7 @@ Nav2SingleNodeNavigator::on_configure(const rclcpp_lifecycle::State &state) {
       "/local_costmap/clear_around_local_costmap");
   //-------to be parameterized params
   max_back_angular_vel_ = 0.35; // stuck recover max back angular vel
-  max_back_dis_ = 0.31;
+  get_parameter("max_back_dis", max_back_dis_);
   max_back_vel_ = 0.1;
   path_fail_stuck_confirm_range_ = 0.06;
   follow_fail_stuck_confirm_range_ = 0.11;
