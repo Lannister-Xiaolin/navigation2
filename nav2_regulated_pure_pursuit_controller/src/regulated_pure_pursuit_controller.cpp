@@ -56,7 +56,8 @@ void RegulatedPurePursuitController::configure(
   double transform_tolerance = 0.1;
   double control_frequency = 20.0;
   goal_dist_tol_ = 0.25;  // reasonable default before first update
-
+  goal_dist_tol_relax_ = 0.25;
+  goal_dist_tol_origin_  = 0.25;
   declare_parameter_if_not_declared(
     node, plugin_name_ + ".desired_linear_vel", rclcpp::ParameterValue(0.5));
   declare_parameter_if_not_declared(
@@ -246,6 +247,8 @@ geometry_msgs::msg::TwistStamped RegulatedPurePursuitController::computeVelocity
     RCLCPP_WARN(logger_, "Unable to retrieve goal checker's tolerances!");
   } else {
     goal_dist_tol_ = pose_tolerance.position.x;
+    goal_dist_tol_relax_ = goal_dist_tol_ + 0.04;
+    goal_dist_tol_origin_ = goal_dist_tol_;
   }
 
   // Transform path to robot base frame
@@ -295,8 +298,10 @@ geometry_msgs::msg::TwistStamped RegulatedPurePursuitController::computeVelocity
   if (shouldRotateToGoalHeading(carrot_pose)) {
     double angle_to_goal = tf2::getYaw(transformed_plan.poses.back().pose.orientation);
     rotateToHeading(linear_vel, angular_vel, angle_to_goal, speed);
+    goal_dist_tol_ = goal_dist_tol_relax_;
   } else if (shouldRotateToPath(carrot_pose, angle_to_heading)) {
     rotateToHeading(linear_vel, angular_vel, angle_to_heading, speed);
+    goal_dist_tol_ = goal_dist_tol_origin_;
   } else {
     applyConstraints(
       fabs(lookahead_dist - sqrt(carrot_dist2)),
@@ -305,6 +310,7 @@ geometry_msgs::msg::TwistStamped RegulatedPurePursuitController::computeVelocity
 
     // Apply curvature to angular velocity after constraining linear velocity
     angular_vel = linear_vel * curvature;
+    goal_dist_tol_ = goal_dist_tol_origin_;
   }
 
   // Collision checking on this velocity heading

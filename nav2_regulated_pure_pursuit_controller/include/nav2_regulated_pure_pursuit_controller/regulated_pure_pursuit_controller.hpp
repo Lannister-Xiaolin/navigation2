@@ -257,7 +257,7 @@ protected:
   bool use_rotate_to_heading_;
   double max_angular_accel_;
   double rotate_to_heading_min_angle_;
-  double goal_dist_tol_;
+  double goal_dist_tol_,goal_dist_tol_relax_,goal_dist_tol_origin_;
   bool allow_reversing_;
 
   nav_msgs::msg::Path global_plan_;
