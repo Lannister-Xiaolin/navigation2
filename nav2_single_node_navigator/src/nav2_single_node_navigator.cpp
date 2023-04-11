@@ -96,7 +96,7 @@ Nav2SingleNodeNavigator::Nav2SingleNodeNavigator()
   RCLCPP_INFO(get_logger(), "Creating controller server");
 
   declare_parameter("controller_frequency", 20.0);
-  declare_parameter("max_back_dis", 0.36);
+  declare_parameter("max_back_dis", 0.41);
   declare_parameter("progress_checker_plugin", default_progress_checker_id_);
   declare_parameter("goal_checker_plugins", default_goal_checker_ids_);
   declare_parameter("controller_plugins", controller_default_ids_);
@@ -1307,7 +1307,7 @@ void Nav2SingleNodeNavigator::followingDeal() {
       if (isPathCollisionWithObstacle(current_planned_path_) || path_diff_time > tf2::durationFromSec(120.0)) {
         if (isGoalCollided()) {
           updateStatus(NavToPoseStatus::GOAL_COLLIDED);
-        }else{
+        } else {
           updateStatus(NavToPoseStatus::GOAL_UPDATED);
         }
       }
@@ -1401,7 +1401,7 @@ bool Nav2SingleNodeNavigator::isGoalCollided() {
     auto condition2 =
         ((value2 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value2 == nav2_costmap_2d::LETHAL_OBSTACLE));
     auto condition3 =
-        ((value3== nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value3 == nav2_costmap_2d::LETHAL_OBSTACLE));
+        ((value3 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value3 == nav2_costmap_2d::LETHAL_OBSTACLE));
     auto condition4 =
         ((value4 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value4 == nav2_costmap_2d::LETHAL_OBSTACLE));
     if (condition1 || condition2 || condition3 || condition4) {
@@ -1429,36 +1429,34 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
     return;
   }
   int search_range = static_cast<int>(max_back_dis_ / 0.05);
-//  unsigned char thresh = 80;
+
   bool final_recover_pos = false;
   for (int i = 1; i < search_range; ++i) {
-    std::vector<int> x_offset = {0, 0, 0, -i, i, i, -i, i, -i};
-    std::vector<int> y_offset = {0, i, -i, 0, 0, i, -i, -i, i};
-    unsigned char value = 0;
-    for (int j = 0; j < 9; ++j) {
-      final_x = static_cast<int>(mx) + x_offset[j];
-      final_y = static_cast<int>(my) + y_offset[j];
-      for (int k = -2; k < 2; ++k) {
-        for (int l = -2; l < 2; ++l) {
-          unsigned int sample_x = static_cast<int>(final_x)+l;
-          unsigned int sample_y = static_cast<int>(final_y)+k;
-          value = std::max(value,global_costmap_->getCost(sample_x, sample_y));
+    for (int iy = -i; iy <= i; ++iy) {
+      for (int ix = -i; ix <= i; ++ix) {
+        if (ix==0 && iy==0) continue;
+        final_x = static_cast<int>(mx) + ix;
+        final_y = static_cast<int>(my) + iy;
+        unsigned char value = 0;
+        for (int k = -1; k < 2; ++k) {
+          for (int l = -1; l < 2; ++l) {
+            unsigned int sample_x = static_cast<int>(final_x) + l;
+            unsigned int sample_y = static_cast<int>(final_y) + k;
+            value = std::max(value, global_costmap_->getCost(sample_x, sample_y));
+          }
         }
-      }
-//      RCLCPP_INFO(get_logger(),
-//                  "cur: %.2f %.2f    final_x: %u  final_y:  %u value:%u",global_pose_.pose.position.x, global_pose_.pose.position.y,
-//                  final_x,
-//                  final_y,value);
-      if (value < nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value == nav2_costmap_2d::NO_INFORMATION) {
+        if (value < nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE || value == nav2_costmap_2d::NO_INFORMATION) {
 //        RCLCPP_INFO(get_logger(),
 //            "cur: %.2f %.2f  mx: %u  my:  %u  final_x: %u  final_y:  %u value:%u",global_pose_.pose.position.x, global_pose_.pose.position.y,
 //            mx,
 //            my,
 //            final_x,
 //            final_y,value);
-        final_recover_pos = true;
-        break;
+          final_recover_pos = true;
+          break;
+        }
       }
+      if (final_recover_pos) break;
     }
     if (final_recover_pos) break;
   }
@@ -1468,8 +1466,10 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
     return;
   }
   geometry_msgs::msg::PoseStamped pose_stamped = global_pose_;
-  global_costmap_->mapToWorld(final_x, final_y, pose_stamped.pose.position.x, pose_stamped.pose.position.y);
-  nav2_util::transformPoseInTargetFrame(pose_stamped, pose_stamped, *tf_, "base_link", 0.2);
+  global_costmap_->
+      mapToWorld(final_x, final_y, pose_stamped
+      .pose.position.x, pose_stamped.pose.position.y);
+  nav2_util::transformPoseInTargetFrame(pose_stamped, pose_stamped, *tf_,"base_link", 0.2);
   auto dis = std::hypot(pose_stamped.pose.position.x, pose_stamped.pose.position.y);
   auto angle = std::atan2(pose_stamped.pose.position.y, pose_stamped.pose.position.x);
   angle = tf2NormalizeAngle(angle);
@@ -1481,7 +1481,8 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
   } else {
     vel = -max_back_vel_;
   }
-  if (dis<0.05) vel=0;
+  if (dis < 0.05)
+    vel = 0;
   if (abs_angle > 2.5 || abs_angle < 0.5) {
     angular_vel = 0.;
   } else {
@@ -1497,11 +1498,13 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
   }
   auto count = static_cast<int>(((dis)) * 10 / max_back_vel_);
   geometry_msgs::msg::Twist twist;
-  twist.angular.z = angular_vel;
-  twist.linear.x = vel;
+  twist.angular.
+      z = angular_vel;
+  twist.linear.
+      x = vel;
   int odom_no_move_count = 0;
-  RCLCPP_INFO(get_logger(),"Recover pos in base link: x: %.2f  y: %.2f target vel: %.2f  angular: %.2f",
-              pose_stamped.pose.position.x,pose_stamped.pose.position.y,vel,angular_vel);
+  RCLCPP_INFO(get_logger(), "Recover pos in base link: x: %.2f  y: %.2f target vel: %.2f  angular: %.2f",
+              pose_stamped.pose.position.x, pose_stamped.pose.position.y, vel, angular_vel);
 //  RCLCPP_INFO(get_logger(),
 //              "Find relative recover position:x:%.2f  y: %.2f  mx: %u  my:  %u  final_x: %u  final_y:  %u angular_vel: %.2f vel: %.2f  angle: %.2f",
 //              pose_stamped.pose.position.x,
@@ -1513,20 +1516,35 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
 //              angular_vel,
 //              vel,
 //              angle);
-  for (int i = 0; i < count; ++i) {
-    if (rclcpp::ok()) {
-      vel_publisher_->publish(twist);
+  for (
+      int i = 0;
+      i < count;
+      ++i) {
+    if (
+        rclcpp::ok()
+        ) {
+      vel_publisher_->
+          publish(twist);
       std::this_thread::sleep_for(100ms);
-      if (abs(odom_sub_->getTwist().x) <= 0.001) {
+      if (
+          abs(odom_sub_
+                  ->
+                      getTwist()
+                  .x) <= 0.001) {
         odom_no_move_count++;
       }
     }
   }
-  twist.angular.z = 0;
-  twist.linear.x = 0;
-  vel_publisher_->publish(twist);
+  twist.angular.
+      z = 0;
+  twist.linear.
+      x = 0;
+  vel_publisher_->
+      publish(twist);
   fail_re_plan_count_ += 1;
-  if (std::abs(odom_no_move_count - count) < 2 && count > 10) {
+  if (
+      std::abs(odom_no_move_count
+                   - count) < 2 && count > 10) {
     updateStatus(NavToPoseStatus::ODOM_NO_MOVE);
   } else {
     RCLCPP_INFO(get_logger(), "Try recover behavior successfully!!!");
