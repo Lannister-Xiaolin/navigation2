@@ -141,7 +141,7 @@ void LayeredCostmap::updateMap(double robot_x, double robot_y, double robot_yaw)
   if (isOutofBounds(robot_x, robot_y)) {
     RCLCPP_WARN(
       rclcpp::get_logger("nav2_costmap_2d"),
-      "Robot is out of bounds of the costmap!");
+      "Robot is out of bounds of the costmap  %.2f  %.2f !",robot_x, robot_y);
   }
 
   if (plugins_.size() == 0 && filters_.size() == 0) {
