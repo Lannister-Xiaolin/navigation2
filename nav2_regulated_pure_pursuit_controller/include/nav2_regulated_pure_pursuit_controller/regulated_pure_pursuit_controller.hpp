@@ -266,6 +266,48 @@ protected:
   carrot_pub_;
   std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>> carrot_arc_pub_;
 };
+/**
+ * @brief Get the L2 distance between 2 geometry_msgs::Points
+ * @param pos1 First point
+ * @param pos1 Second point
+ * @return double L2 distance
+ */
+inline double euclidean_distance2d(
+    const geometry_msgs::msg::Point & pos1,
+    const geometry_msgs::msg::Point & pos2)
+{
+  double dx = pos1.x - pos2.x;
+  double dy = pos1.y - pos2.y;
+  return std::sqrt(dx * dx + dy * dy);
+}
+
+/**
+ * @brief Get the L2 distance between 2 geometry_msgs::Poses
+ * @param pos1 First pose
+ * @param pos1 Second pose
+ * @return double L2 distance
+ */
+inline double euclidean_distance2d(
+    const geometry_msgs::msg::Pose & pos1,
+    const geometry_msgs::msg::Pose & pos2)
+{
+  double dx = pos1.position.x - pos2.position.x;
+  double dy = pos1.position.y - pos2.position.y;
+  return std::sqrt(dx * dx + dy * dy );
+}
+
+/**
+ * @brief Get the L2 distance between 2 geometry_msgs::PoseStamped
+ * @param pos1 First pose
+ * @param pos1 Second pose
+ * @return double L2 distance
+ */
+inline double euclidean_distance2d(
+    const geometry_msgs::msg::PoseStamped & pos1,
+    const geometry_msgs::msg::PoseStamped & pos2)
+{
+  return euclidean_distance2d(pos1.pose, pos2.pose);
+}
 
 }  // namespace nav2_regulated_pure_pursuit_controller
 

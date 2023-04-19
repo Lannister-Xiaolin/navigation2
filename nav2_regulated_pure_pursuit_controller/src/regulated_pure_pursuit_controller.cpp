@@ -30,7 +30,7 @@ using std::min;
 using std::max;
 using std::abs;
 using nav2_util::declare_parameter_if_not_declared;
-using nav2_util::geometry_utils::euclidean_distance;
+//using nav2_util::geometry_utils::euclidean_distance2d;
 using namespace nav2_costmap_2d;  // NOLINT
 
 namespace nav2_regulated_pure_pursuit_controller
@@ -577,14 +577,14 @@ nav_msgs::msg::Path RegulatedPurePursuitController::transformGlobalPlan(
     nav2_util::geometry_utils::min_by(
     global_plan_.poses.begin(), global_plan_.poses.end(),
     [&robot_pose](const geometry_msgs::msg::PoseStamped & ps) {
-      return euclidean_distance(robot_pose, ps);
+      return euclidean_distance2d(robot_pose, ps);
     });
 
   // Find points definitely outside of the costmap so we won't transform them.
   auto transformation_end = std::find_if(
     transformation_begin, end(global_plan_.poses),
     [&](const auto & global_plan_pose) {
-      return euclidean_distance(robot_pose, global_plan_pose) > max_transform_dist;
+      return euclidean_distance2d(robot_pose, global_plan_pose) > max_transform_dist;
     });
 
   // Lambda to transform a PoseStamped from global frame to local
