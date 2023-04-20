@@ -246,7 +246,7 @@ global_costmap:
         footprint_clearing_enabled: False
         observation_sources: pointcloud
         pointcloud:
-          topic: /points_labeled
+          topic: /perception/points_labeled
           footprint_clearing_enabled: False
           min_obstacle_height: 0.25
           max_obstacle_height: 1.0
