@@ -12,6 +12,7 @@ find_package(visualization_msgs REQUIRED)
 find_package(nav2_util REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(nav2_pro_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -40,6 +41,7 @@ set(dependencies
   nav2_util
   nav2_msgs
   nav_msgs
+  nav2_pro_msgs
   nav_2d_utils
   nav_2d_msgs
   geometry_msgs

@@ -345,6 +345,16 @@ Nav2SingleNodeNavigator::on_configure(const rclcpp_lifecycle::State &state) {
   max_back_vel_ = 0.1;
   path_fail_stuck_confirm_range_ = 0.06;
   follow_fail_stuck_confirm_range_ = 0.11;
+  x_circle_radius_ = {};
+  y_circle_radius_ = {};
+  // using eight point to represent circle
+  for (int i = 1; i < 30; ++i) {
+    int sin_45 = static_cast<int>(0.707 * i);
+    std::vector<int> x_indexes = {0, sin_45, i, sin_45, 0, -sin_45, -i, -sin_45};
+    std::vector<int> y_indexes = {i, sin_45, 0, -sin_45, -i, -sin_45, 0, sin_45};
+    x_circle_radius_.emplace(std::make_pair(i, x_indexes));
+    y_circle_radius_.emplace(std::make_pair(i, y_indexes));
+  }
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -1434,7 +1444,7 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
   for (int i = 1; i < search_range; ++i) {
     for (int iy = -i; iy <= i; ++iy) {
       for (int ix = -i; ix <= i; ++ix) {
-        if (ix==0 && iy==0) continue;
+        if (ix == 0 && iy == 0) continue;
         final_x = static_cast<int>(mx) + ix;
         final_y = static_cast<int>(my) + iy;
         unsigned char value = 0;
@@ -1469,7 +1479,7 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
   global_costmap_->
       mapToWorld(final_x, final_y, pose_stamped
       .pose.position.x, pose_stamped.pose.position.y);
-  nav2_util::transformPoseInTargetFrame(pose_stamped, pose_stamped, *tf_,"base_link", 0.2);
+  nav2_util::transformPoseInTargetFrame(pose_stamped, pose_stamped, *tf_, "base_link", 0.2);
   auto dis = std::hypot(pose_stamped.pose.position.x, pose_stamped.pose.position.y);
   auto angle = std::atan2(pose_stamped.pose.position.y, pose_stamped.pose.position.x);
   angle = tf2NormalizeAngle(angle);
@@ -1550,6 +1560,61 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
     RCLCPP_INFO(get_logger(), "Try recover behavior successfully!!!");
     updateStatus(NavToPoseStatus::GOAL_UPDATED);
   }
+}
+//todo 添加服务，
+bool Nav2SingleNodeNavigator::isPositionFreeMoveInGlobalCostMap(const geometry_msgs::msg::Point &point, double radius) {
+  unsigned int mx, my;
+  bool collide = false;
+  if (global_costmap_->worldToMap(point.x, point.y, mx, my)) {
+    auto search_range = std::max(0, static_cast<int>(radius / global_costmap_->getResolution()));
+    collide = (global_costmap_->getCost(mx, my) == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || collide ||
+        (global_costmap_->getCost(mx, my) == nav2_costmap_2d::LETHAL_OBSTACLE);
+    if (search_range == 0 || mx < 5 || my < 5 || mx > (global_costmap_->getSizeInCellsX() - 5)
+        || my > (global_costmap_->getSizeInCellsX() - 5))
+      return !collide;
+    for (int range = 1; range <= search_range; ++range) {
+      auto &x_indexes = x_circle_radius_.at(range);
+      auto &y_indexes = y_circle_radius_.at(range);
+      for (unsigned int i = 0; i < x_indexes.size(); ++i) {
+        unsigned int sample_x = mx + x_indexes[i];
+        unsigned int sample_y = my + y_indexes[i];
+        auto value1 = global_costmap_->getCost(sample_x, sample_y);
+        collide = collide || ((value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE)
+            || (value1 == nav2_costmap_2d::LETHAL_OBSTACLE));
+        if (collide) return false;
+      }
+      if (collide) return false;
+    }
+  }
+  return !collide;
+}
+bool Nav2SingleNodeNavigator::isPositionFreeMoveInLocalCostMap(const geometry_msgs::msg::Point &point, double radius) {
+  unsigned int mx, my;
+  bool collide = false;
+  if (local_costmap_ros_->getCostmap()->worldToMap(point.x, point.y, mx, my)) {
+    auto search_range = std::max(0, static_cast<int>(radius / global_costmap_->getResolution()));
+    collide =
+        (local_costmap_ros_->getCostmap()->getCost(mx, my) == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || collide
+            ||
+                (local_costmap_ros_->getCostmap()->getCost(mx, my) == nav2_costmap_2d::LETHAL_OBSTACLE);
+    if (search_range == 0 || mx < 5 || my < 5 || mx > (local_costmap_ros_->getCostmap()->getSizeInCellsX() - 5)
+        || my > (local_costmap_ros_->getCostmap()->getSizeInCellsX() - 5))
+      return !collide;
+    for (int range = 1; range <= search_range; ++range) {
+      auto &x_indexes = x_circle_radius_.at(range);
+      auto &y_indexes = y_circle_radius_.at(range);
+      for (unsigned int i = 0; i < x_indexes.size(); ++i) {
+        unsigned int sample_x = mx + x_indexes[i];
+        unsigned int sample_y = my + y_indexes[i];
+        auto value1 = local_costmap_ros_->getCostmap()->getCost(sample_x, sample_y);
+        collide = collide || ((value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE)
+            || (value1 == nav2_costmap_2d::LETHAL_OBSTACLE));
+        if (collide) return false;
+      }
+      if (collide) return false;
+    }
+  }
+  return !collide;
 }
 
 }  // namespace nav2_non_bt_navigator

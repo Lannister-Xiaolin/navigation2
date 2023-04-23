@@ -27,6 +27,7 @@
 #include "nav2_util/lifecycle_node.hpp"
 #include "nav2_msgs/action/compute_path_to_pose.hpp"
 #include "nav2_msgs/action/compute_path_through_poses.hpp"
+#include "nav2_pro_msgs/srv/position_free_move.hpp"
 #include "nav2_msgs/msg/costmap.hpp"
 #include "nav2_util/robot_utils.hpp"
 #include "nav2_util/simple_action_server.hpp"
@@ -338,7 +339,8 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
     return twist_thresh;
   }
   bool isPathCollisionWithObstacle(nav_msgs::msg::Path &path);
-
+  bool isPositionFreeMoveInLocalCostMap(const geometry_msgs::msg::Point &point,double radius);
+  bool isPositionFreeMoveInGlobalCostMap(const geometry_msgs::msg::Point &point,double radius);
   // ---------------controller----------------
 
   // Planner
@@ -453,6 +455,8 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
   std::shared_ptr<nav2_msgs::action::NavigateToPose::Result> navigate_to_pose_result_;
 //  std::shared_ptr<nav2_msgs::action::NavigateToPose::Feedback> navigate_to_pose_feedback_;
   std::shared_ptr<rclcpp::Client<nav2_msgs::srv::ClearCostmapAroundRobot>> clear_local_around_client_;
+  std::map<int,std::vector<int>> x_circle_radius_;
+  std::map<int,std::vector<int>> y_circle_radius_;
   void updateStatus(NavToPoseStatus nav_to_pose_status);
   bool updateGlobalPose();
   void followingDeal();
