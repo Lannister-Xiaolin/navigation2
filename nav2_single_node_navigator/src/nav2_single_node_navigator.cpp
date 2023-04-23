@@ -1345,56 +1345,58 @@ void Nav2SingleNodeNavigator::planPathFailedDeal() {
     updateStatus(NavToPoseStatus::GOAL_COLLIDED);
     can_try_recover_ = true;
   } else {
+    RCLCPP_ERROR(get_logger(),"Not deal with path plan failed with current and goal not stucked ");
     can_try_recover_ = false;
   };
 }
 bool Nav2SingleNodeNavigator::isCurrentStuck(double search_range) {
   if (!updateGlobalPose()) return false;
-  unsigned int mx, my;
-  int grid_search_range = std::max(static_cast<int>(search_range / global_costmap_->getResolution()), 1);
-  if (global_costmap_->worldToMap(global_pose_.pose.position.x, global_pose_.pose.position.y, mx, my)) {
-    for (int i = 1; i <= grid_search_range; ++i) {
-      std::vector<int> x_offset = {0, 0, 0, -i, i, i, -i, i, -i};
-      std::vector<int> y_offset = {0, i, -i, 0, 0, i, -i, -i, i};
-      for (int j = 0; j < 9; ++j) {
-        unsigned int x = static_cast<int>(mx) + x_offset[j];
-        unsigned int y = static_cast<int>(my) + y_offset[j];
-        auto value1 = global_costmap_->getCost(x, y);
-        auto condition1 =
-            ((value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value1 == nav2_costmap_2d::LETHAL_OBSTACLE));
-        if (condition1) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
+//  unsigned int mx, my;
+//  int grid_search_range = std::max(static_cast<int>(search_range / global_costmap_->getResolution()), 1);
+//  if (global_costmap_->worldToMap(global_pose_.pose.position.x, global_pose_.pose.position.y, mx, my)) {
+//    for (int i = 1; i <= grid_search_range; ++i) {
+//      std::vector<int> x_offset = {0, 0, 0, -i, i, i, -i, i, -i};
+//      std::vector<int> y_offset = {0, i, -i, 0, 0, i, -i, -i, i};
+//      for (int j = 0; j < 9; ++j) {
+//        unsigned int x = static_cast<int>(mx) + x_offset[j];
+//        unsigned int y = static_cast<int>(my) + y_offset[j];
+//        auto value1 = global_costmap_->getCost(x, y);
+//        auto condition1 =
+//            ((value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value1 == nav2_costmap_2d::LETHAL_OBSTACLE));
+//        if (condition1) {
+//          return true;
+//        }
+//      }
+//    }
+//  }
+  return isPositionFreeMoveInGlobalCostMap(global_pose_.pose.position, search_range);
 }
 bool Nav2SingleNodeNavigator::isCurrentLocalStuck(double search_range) {
   geometry_msgs::msg::PoseStamped local_pose;
   if (!local_costmap_ros_->getRobotPose(local_pose)) {
     return false;
   }
-  unsigned int mx, my;
-  int grid_search_range =
-      std::max(static_cast<int>(search_range / local_costmap_ros_->getCostmap()->getResolution()), 1);
-  if (local_costmap_ros_->getCostmap()->worldToMap(local_pose.pose.position.x, local_pose.pose.position.y, mx, my)) {
-    for (int i = 1; i <= grid_search_range; ++i) {
-      std::vector<int> x_offset = {0, 0, 0, -i, i, i, -i, i, -i};
-      std::vector<int> y_offset = {0, i, -i, 0, 0, i, -i, -i, i};
-      for (int j = 0; j < 9; ++j) {
-        unsigned int x = static_cast<int>(mx) + x_offset[j];
-        unsigned int y = static_cast<int>(my) + y_offset[j];
-        auto value1 = local_costmap_ros_->getCostmap()->getCost(x, y);
-        auto condition1 =
-            ((value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value1 == nav2_costmap_2d::LETHAL_OBSTACLE));
-        if (condition1) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
+//  unsigned int mx, my;
+//  int grid_search_range =
+//      std::max(static_cast<int>(search_range / local_costmap_ros_->getCostmap()->getResolution()), 1);
+//
+//  if (local_costmap_ros_->getCostmap()->worldToMap(local_pose.pose.position.x, local_pose.pose.position.y, mx, my)) {
+//    for (int i = 1; i <= grid_search_range; ++i) {
+//      std::vector<int> x_offset = {0, 0, 0, -i, i, i, -i, i, -i};
+//      std::vector<int> y_offset = {0, i, -i, 0, 0, i, -i, -i, i};
+//      for (int j = 0; j < 9; ++j) {
+//        unsigned int x = static_cast<int>(mx) + x_offset[j];
+//        unsigned int y = static_cast<int>(my) + y_offset[j];
+//        auto value1 = local_costmap_ros_->getCostmap()->getCost(x, y);
+//        auto condition1 =
+//            ((value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value1 == nav2_costmap_2d::LETHAL_OBSTACLE));
+//        if (condition1) {
+//          return true;
+//        }
+//      }
+//    }
+//  }
+  return !isPositionFreeMoveInLocalCostMap(local_pose.pose.position, search_range);
 }
 
 bool Nav2SingleNodeNavigator::isGoalCollided() {
