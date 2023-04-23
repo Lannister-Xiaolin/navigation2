@@ -349,7 +349,7 @@ Nav2SingleNodeNavigator::on_configure(const rclcpp_lifecycle::State &state) {
   y_circle_radius_ = {};
   // using eight point to represent circle
   for (int i = 1; i < 30; ++i) {
-    int sin_45 = static_cast<int>(0.707 * i);
+    int sin_45 = static_cast<int>(0.707 * i+0.4);
     std::vector<int> x_indexes = {0, sin_45, i, sin_45, 0, -sin_45, -i, -sin_45};
     std::vector<int> y_indexes = {i, sin_45, 0, -sin_45, -i, -sin_45, 0, sin_45};
     x_circle_radius_.emplace(std::make_pair(i, x_indexes));
@@ -1369,7 +1369,7 @@ bool Nav2SingleNodeNavigator::isCurrentStuck(double search_range) {
 //      }
 //    }
 //  }
-  return isPositionFreeMoveInGlobalCostMap(global_pose_.pose.position, search_range);
+  return !isPositionFreeMoveInGlobalCostMap(global_pose_.pose.position, search_range);
 }
 bool Nav2SingleNodeNavigator::isCurrentLocalStuck(double search_range) {
   geometry_msgs::msg::PoseStamped local_pose;

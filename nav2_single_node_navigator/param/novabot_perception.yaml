@@ -86,9 +86,9 @@ nav2_single_node_navigator:
        trans_stopped_velocity: 0.25
        short_circuit_trajectory_evaluation: True
        stateful: True
-       critics: [ "RotateToGoal", "Oscillation", "PreferForwardCritic", "BaseObstacle", "GoalAlign", "PathDist", "GoalDist" ]
+       critics: [ "RotateToGoal", "Oscillation", "PathAlign", "BaseObstacle", "GoalAlign", "PathDist", "GoalDist" ]
        BaseObstacle.scale: 0.08
-       PathAlign.scale: 3.0
+       PathAlign.scale: 12.0
        PathAlign.forward_point_distance: 0.05
        GoalAlign.scale: 24.0
        GoalAlign.forward_point_distance: 0.1
@@ -137,11 +137,11 @@ nav2_single_node_navigator:
     FollowPathPurePursuit:
 #      plugin: "nav2_rotation_shim_controller::RotationShimController"
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
-      angular_dist_threshold: 0.1745
-      forward_sampling_distance: 0.50
-      rotate_to_heading_angular_vel: 0.8
-      max_angular_accel: 1.5
-      simulate_ahead_time: 1.0
+#      angular_dist_threshold: 0.1745
+#      forward_sampling_distance: 0.50
+#      rotate_to_heading_angular_vel: 0.8
+#      max_angular_accel: 1.5
+#      simulate_ahead_time: 1.0
       debug_trajectory_details: True
       desired_linear_vel: 0.5
       max_linear_accel: 2.0
@@ -156,7 +156,7 @@ nav2_single_node_navigator:
       min_approach_linear_velocity: 0.08
       use_approach_linear_velocity_scaling: true
       approach_velocity_scaling_dist: 0.08
-      max_allowed_time_to_collision: 0.7
+      max_allowed_time_to_collision: 0.8
       use_regulated_linear_velocity_scaling: true
       use_cost_regulated_linear_velocity_scaling: false
       regulated_linear_scaling_min_radius: 0.9
