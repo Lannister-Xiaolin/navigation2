@@ -1104,7 +1104,7 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
             twist.angular.z = -0.1;
             twist.angular.x = -0.03;
             vel_publisher_->publish(twist);
-            std::this_thread::sleep_for(100ms);
+            std::this_thread::sleep_for(200ms);
             twist.angular.z = 0.0;
             twist.angular.x = 0.0;
             vel_publisher_->publish(twist);
@@ -1241,6 +1241,7 @@ bool Nav2SingleNodeNavigator::startFollowPath(const nav_msgs::msg::Path &path) {
   auto goal_handle = action_client_follow_path_->async_send_goal(goal, follow_path_send_goal_options_).get();
   goal_handle->is_result_aware();
   if (goal_handle == nullptr) {
+    RCLCPP_ERROR(get_logger(),"Fucking problem with node result");
     return false;
   } else {
     follow_path_client_goal_id_ = goal_handle->get_goal_id();

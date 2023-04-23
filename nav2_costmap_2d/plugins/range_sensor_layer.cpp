@@ -439,6 +439,7 @@ void RangeSensorLayer::updateBounds(
   double robot_yaw, double * min_x, double * min_y,
   double * max_x, double * max_y)
 {
+  current_ = true;
   robot_yaw = 0 + robot_yaw;  // Avoid error if variable not in use
   if (layered_costmap_->isRolling()) {
     updateOrigin(robot_x - getSizeInMetersX() / 2, robot_y - getSizeInMetersY() / 2);
@@ -477,6 +478,7 @@ void RangeSensorLayer::updateCosts(
   nav2_costmap_2d::Costmap2D & master_grid,
   int min_i, int min_j, int max_i, int max_j)
 {
+  current_ = true;
   if (!enabled_) {
     return;
   }
