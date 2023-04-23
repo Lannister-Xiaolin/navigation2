@@ -1,0 +1,6 @@
+# Confirm if robot is movable in costmap according to radius
+
+float32 radius
+---
+bool result
+
