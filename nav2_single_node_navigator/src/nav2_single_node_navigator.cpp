@@ -1066,14 +1066,13 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
   int tf_failed_retry_count = 0;
   can_try_recover_ = true;
   current_planned_path_ = nav_msgs::msg::Path();
-  int unknown_follow_path_fail_retry = 0;
-  fail_re_plan_count_ = 0;
+  int local_plan_failed_count = 0;
+  recover_count_ = 0;
   try {
     while (rclcpp::ok()) {
       current_time_ = now();
       if (nav_to_pose_status_ == NavToPoseStatus::GOAL_UPDATED) {
         goalUpdatedDeal();
-        unknown_follow_path_fail_retry = std::max(unknown_follow_path_fail_retry - 1, 0);
       } else if (nav_to_pose_status_ == NavToPoseStatus::PATH_UPDATED) {
         pathUpdatedDeal();
       } else if (nav_to_pose_status_ == NavToPoseStatus::PLAN_PATH_FAILED) {
@@ -1116,11 +1115,19 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
         } else {
           // only continual fail with same reason will lead to unknown_follow_path_fail_retry increase;
           //todo optimize
-          unknown_follow_path_fail_retry += 2;
-          if (unknown_follow_path_fail_retry < 3) {
+          local_plan_failed_count += 1;
+          if (local_plan_failed_count < 3) {
             RCLCPP_WARN(get_logger(),
                         "Current position is not stuck. Maybe controller is not able to compute path retry!!!!!!");
             updateStatus(NavToPoseStatus::GOAL_UPDATED);
+            geometry_msgs::msg::Twist twist;
+            twist.angular.z = -0.35;
+            twist.angular.x = -0.02;
+            vel_publisher_->publish(twist);
+            std::this_thread::sleep_for(200ms);
+            twist.angular.z = 0.0;
+            twist.angular.x = 0.0;
+            vel_publisher_->publish(twist);
           } else {
             RCLCPP_WARN(get_logger(), "Current position is not stuck. reach max retry times, abort!!!!!!");
             break;
@@ -1149,6 +1156,8 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
       if (is_canceling()) {
         updateStatus(NavToPoseStatus::CANCELLED);
       } else if (action_server_nav_to_pos_->is_preempt_requested()) {
+        recover_count_ = 0;
+        local_plan_failed_count = 0;
         navigate_to_pose_goal_ = action_server_nav_to_pos_->accept_pending_goal();
         updateStatus(NavToPoseStatus::GOAL_UPDATED);
       }
@@ -1334,7 +1343,6 @@ void Nav2SingleNodeNavigator::pathUpdatedDeal() {
 }
 void Nav2SingleNodeNavigator::goalUpdatedDeal() {
   if (computePathForNavToPose("GridBased", navigate_to_pose_goal_->pose, current_planned_path_)) {
-    fail_re_plan_count_ = 0;
     updateStatus(NavToPoseStatus::PATH_UPDATED);
   } else updateStatus(NavToPoseStatus::PLAN_PATH_FAILED);
 }
@@ -1424,7 +1432,7 @@ bool Nav2SingleNodeNavigator::isGoalCollided() {
   return false;
 }
 void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
-  if (fail_re_plan_count_ > 2) {
+  if (recover_count_ > 4) {
     updateStatus(NavToPoseStatus::STUCK_RECOVER_FAIL);
     return;
   }
@@ -1529,35 +1537,21 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
 //              angular_vel,
 //              vel,
 //              angle);
-  for (
-      int i = 0;
-      i < count;
-      ++i) {
-    if (
-        rclcpp::ok()
-        ) {
-      vel_publisher_->
-          publish(twist);
+  for (int i = 0;i < count;++i) {
+    if (rclcpp::ok()) {
+      vel_publisher_->publish(twist);
       std::this_thread::sleep_for(100ms);
-      if (
-          abs(odom_sub_
-                  ->
-                      getTwist()
-                  .x) <= 0.001) {
+      if (abs(odom_sub_->getTwist().x) <= 0.001) {
         odom_no_move_count++;
       }
     }
   }
-  twist.angular.
-      z = 0;
-  twist.linear.
-      x = 0;
-  vel_publisher_->
-      publish(twist);
-  fail_re_plan_count_ += 1;
+  twist.angular.z = 0;
+  twist.linear.x = 0;
+  vel_publisher_->publish(twist);
+  recover_count_ += 1;
   if (
-      std::abs(odom_no_move_count
-                   - count) < 2 && count > 10) {
+      std::abs(odom_no_move_count- count) < 2 && count > 10) {
     updateStatus(NavToPoseStatus::ODOM_NO_MOVE);
   } else {
     RCLCPP_INFO(get_logger(), "Try recover behavior successfully!!!");

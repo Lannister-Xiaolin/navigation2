@@ -449,7 +449,7 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
   current_path_time_{0, 0},task_start_time_{0,0};
   nav_msgs::msg::Path current_planned_path_;
   bool can_try_recover_;
-  int fail_re_plan_count_; // compute plan fail or follow path abort retry count because of current position stuck
+  int recover_count_; // compute plan fail or follow path abort retry count because of current position stuck
   double max_back_dis_,max_back_vel_,max_back_angular_vel_,path_fail_stuck_confirm_range_,follow_fail_stuck_confirm_range_;
   std::shared_ptr<const nav2_msgs::action::NavigateToPose::Goal> navigate_to_pose_goal_;
   std::shared_ptr<nav2_msgs::action::NavigateToPose::Result> navigate_to_pose_result_;
