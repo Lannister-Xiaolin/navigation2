@@ -1,5 +1,6 @@
 # Confirm if robot is movable in costmap according to radius
-
+bool local_costmap
+bool global_costmap
 float32 radius
 ---
 bool result

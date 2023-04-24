@@ -349,12 +349,17 @@ Nav2SingleNodeNavigator::on_configure(const rclcpp_lifecycle::State &state) {
   y_circle_radius_ = {};
   // using eight point to represent circle
   for (int i = 1; i < 30; ++i) {
-    int sin_45 = static_cast<int>(0.707 * i+0.4);
+    int sin_45 = static_cast<int>(0.707 * i + 0.4);
     std::vector<int> x_indexes = {0, sin_45, i, sin_45, 0, -sin_45, -i, -sin_45};
     std::vector<int> y_indexes = {i, sin_45, 0, -sin_45, -i, -sin_45, 0, sin_45};
     x_circle_radius_.emplace(std::make_pair(i, x_indexes));
     y_circle_radius_.emplace(std::make_pair(i, y_indexes));
   }
+  point_free_move_service_ = this->create_service<nav2_pro_msgs::srv::PositionFreeMove>(
+      "/nav2_single_node_navigator/point_free_move",
+      std::bind(
+          &Nav2SingleNodeNavigator::HandlePointFreeMove, this,
+          std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -456,6 +461,7 @@ Nav2SingleNodeNavigator::on_cleanup(const rclcpp_lifecycle::State &state) {
   action_server_nav_to_pos_.reset();
   action_client_nav_to_pos_.reset();
   action_client_follow_path_.reset();
+  point_free_move_service_.reset();
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -1087,9 +1093,9 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
         if (tf_failed_retry_count > 5) break;
       } else if (nav_to_pose_status_ == NavToPoseStatus::FOLLOW_PATH_COLLIDED
           || nav_to_pose_status_ == NavToPoseStatus::FOLLOW_PATH_ABORTED) {
-        if (isCurrentStuck(follow_fail_stuck_confirm_range_)) {
+        if (!isPositionFreeMoveInGlobalCostMap(follow_fail_stuck_confirm_range_)) {
           updateStatus(NavToPoseStatus::CURRENT_STUCK_RECOVERY);
-        } else if (isCurrentLocalStuck(path_fail_stuck_confirm_range_)) {
+        } else if (!isPositionFreeMoveInLocalCostMap(path_fail_stuck_confirm_range_)) {
           RCLCPP_WARN(get_logger(),
                       "Local cost map and global cost map is different, some obstacle is not in global cost map!!!");
           if (clear_local_around_client_->wait_for_service(200ms)) {
@@ -1250,7 +1256,7 @@ bool Nav2SingleNodeNavigator::startFollowPath(const nav_msgs::msg::Path &path) {
   auto goal_handle = action_client_follow_path_->async_send_goal(goal, follow_path_send_goal_options_).get();
   goal_handle->is_result_aware();
   if (goal_handle == nullptr) {
-    RCLCPP_ERROR(get_logger(),"Fucking problem with node result");
+    RCLCPP_ERROR(get_logger(), "Fucking problem with node result");
     return false;
   } else {
     follow_path_client_goal_id_ = goal_handle->get_goal_id();
@@ -1317,11 +1323,11 @@ void Nav2SingleNodeNavigator::followingDeal() {
     if (follow_path_client_result_.code == rclcpp_action::ResultCode::SUCCEEDED) {
       updateStatus(NavToPoseStatus::SUCCESS);
     } else {
-      updateStatus(NavToPoseStatus::FOLLOW_PATH_COLLIDED);
+      updateStatus(NavToPoseStatus::FOLLOW_PATH_ABORTED);
     }
   } else {
     auto diff = current_time_ - last_check_time_;
-    if (diff > tf2::durationFromSec(0.8)) {
+    if (diff > tf2::durationFromSec(1.0)) {
       last_check_time_ = current_time_;
       auto path_diff_time = current_time_ - current_path_time_;
       if (isPathCollisionWithObstacle(current_planned_path_) || path_diff_time > tf2::durationFromSec(120.0)) {
@@ -1347,65 +1353,27 @@ void Nav2SingleNodeNavigator::goalUpdatedDeal() {
   } else updateStatus(NavToPoseStatus::PLAN_PATH_FAILED);
 }
 void Nav2SingleNodeNavigator::planPathFailedDeal() {
-  if (isCurrentStuck(path_fail_stuck_confirm_range_)) {
+  if (!isPositionFreeMoveInGlobalCostMap(path_fail_stuck_confirm_range_)) {
     updateStatus(NavToPoseStatus::CURRENT_STUCK_RECOVERY);
     can_try_recover_ = true;
   } else if (isGoalCollided()) {
     updateStatus(NavToPoseStatus::GOAL_COLLIDED);
     can_try_recover_ = true;
   } else {
-    RCLCPP_ERROR(get_logger(),"Not deal with path plan failed with current and goal not stucked ");
+    RCLCPP_ERROR(get_logger(), "Not deal with path plan failed with current and goal not stucked ");
     can_try_recover_ = false;
   };
 }
-bool Nav2SingleNodeNavigator::isCurrentStuck(double search_range) {
+bool Nav2SingleNodeNavigator::isPositionFreeMoveInGlobalCostMap(double search_range) {
   if (!updateGlobalPose()) return false;
-//  unsigned int mx, my;
-//  int grid_search_range = std::max(static_cast<int>(search_range / global_costmap_->getResolution()), 1);
-//  if (global_costmap_->worldToMap(global_pose_.pose.position.x, global_pose_.pose.position.y, mx, my)) {
-//    for (int i = 1; i <= grid_search_range; ++i) {
-//      std::vector<int> x_offset = {0, 0, 0, -i, i, i, -i, i, -i};
-//      std::vector<int> y_offset = {0, i, -i, 0, 0, i, -i, -i, i};
-//      for (int j = 0; j < 9; ++j) {
-//        unsigned int x = static_cast<int>(mx) + x_offset[j];
-//        unsigned int y = static_cast<int>(my) + y_offset[j];
-//        auto value1 = global_costmap_->getCost(x, y);
-//        auto condition1 =
-//            ((value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value1 == nav2_costmap_2d::LETHAL_OBSTACLE));
-//        if (condition1) {
-//          return true;
-//        }
-//      }
-//    }
-//  }
-  return !isPositionFreeMoveInGlobalCostMap(global_pose_.pose.position, search_range);
+  return isPositionFreeMoveInGlobalCostMap(global_pose_.pose.position, search_range);
 }
-bool Nav2SingleNodeNavigator::isCurrentLocalStuck(double search_range) {
+bool Nav2SingleNodeNavigator::isPositionFreeMoveInLocalCostMap(double search_range) {
   geometry_msgs::msg::PoseStamped local_pose;
   if (!local_costmap_ros_->getRobotPose(local_pose)) {
     return false;
   }
-//  unsigned int mx, my;
-//  int grid_search_range =
-//      std::max(static_cast<int>(search_range / local_costmap_ros_->getCostmap()->getResolution()), 1);
-//
-//  if (local_costmap_ros_->getCostmap()->worldToMap(local_pose.pose.position.x, local_pose.pose.position.y, mx, my)) {
-//    for (int i = 1; i <= grid_search_range; ++i) {
-//      std::vector<int> x_offset = {0, 0, 0, -i, i, i, -i, i, -i};
-//      std::vector<int> y_offset = {0, i, -i, 0, 0, i, -i, -i, i};
-//      for (int j = 0; j < 9; ++j) {
-//        unsigned int x = static_cast<int>(mx) + x_offset[j];
-//        unsigned int y = static_cast<int>(my) + y_offset[j];
-//        auto value1 = local_costmap_ros_->getCostmap()->getCost(x, y);
-//        auto condition1 =
-//            ((value1 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value1 == nav2_costmap_2d::LETHAL_OBSTACLE));
-//        if (condition1) {
-//          return true;
-//        }
-//      }
-//    }
-//  }
-  return !isPositionFreeMoveInLocalCostMap(local_pose.pose.position, search_range);
+  return isPositionFreeMoveInLocalCostMap(local_pose.pose.position, search_range);
 }
 
 bool Nav2SingleNodeNavigator::isGoalCollided() {
@@ -1425,7 +1393,7 @@ bool Nav2SingleNodeNavigator::isGoalCollided() {
         ((value3 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value3 == nav2_costmap_2d::LETHAL_OBSTACLE));
     auto condition4 =
         ((value4 == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || (value4 == nav2_costmap_2d::LETHAL_OBSTACLE));
-    if (condition1 || condition2 || condition3 || condition4) {
+    if (condition1 && condition2 && condition3 && condition4) {
       return true;
     }
   }
@@ -1537,7 +1505,7 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
 //              angular_vel,
 //              vel,
 //              angle);
-  for (int i = 0;i < count;++i) {
+  for (int i = 0; i < count; ++i) {
     if (rclcpp::ok()) {
       vel_publisher_->publish(twist);
       std::this_thread::sleep_for(100ms);
@@ -1551,7 +1519,7 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
   vel_publisher_->publish(twist);
   recover_count_ += 1;
   if (
-      std::abs(odom_no_move_count- count) < 2 && count > 10) {
+      std::abs(odom_no_move_count - count) < 2 && count > 10) {
     updateStatus(NavToPoseStatus::ODOM_NO_MOVE);
   } else {
     RCLCPP_INFO(get_logger(), "Try recover behavior successfully!!!");
@@ -1562,6 +1530,7 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
 bool Nav2SingleNodeNavigator::isPositionFreeMoveInGlobalCostMap(const geometry_msgs::msg::Point &point, double radius) {
   unsigned int mx, my;
   bool collide = false;
+  std::unique_lock<nav2_costmap_2d::Costmap2D::mutex_t> lock(*(global_costmap_->getMutex()));
   if (global_costmap_->worldToMap(point.x, point.y, mx, my)) {
     auto search_range = std::max(0, static_cast<int>(radius / global_costmap_->getResolution()));
     collide = (global_costmap_->getCost(mx, my) == nav2_costmap_2d::INSCRIBED_INFLATED_OBSTACLE) || collide ||
@@ -1588,6 +1557,7 @@ bool Nav2SingleNodeNavigator::isPositionFreeMoveInGlobalCostMap(const geometry_m
 bool Nav2SingleNodeNavigator::isPositionFreeMoveInLocalCostMap(const geometry_msgs::msg::Point &point, double radius) {
   unsigned int mx, my;
   bool collide = false;
+  std::unique_lock<nav2_costmap_2d::Costmap2D::mutex_t> lock(*(local_costmap_ros_->getCostmap()->getMutex()));
   if (local_costmap_ros_->getCostmap()->worldToMap(point.x, point.y, mx, my)) {
     auto search_range = std::max(0, static_cast<int>(radius / global_costmap_->getResolution()));
     collide =
@@ -1612,6 +1582,25 @@ bool Nav2SingleNodeNavigator::isPositionFreeMoveInLocalCostMap(const geometry_ms
     }
   }
   return !collide;
+}
+void Nav2SingleNodeNavigator::HandlePointFreeMove(const std::shared_ptr<rmw_request_id_t> /*request_header*/,
+                                                  const std::shared_ptr<nav2_pro_msgs::srv::PositionFreeMove::Request> request,
+                                                  const std::shared_ptr<nav2_pro_msgs::srv::PositionFreeMove::Response> responce) {
+
+  if (!request->global_costmap && !request->local_costmap) {
+    responce->result = true;
+    return;
+  }
+  bool status = true;
+  if (request->global_costmap) {
+    status = status && isPositionFreeMoveInGlobalCostMap(request->radius);
+  } else {
+    status = false;
+  }
+  if (request->local_costmap) {
+    status = status && isPositionFreeMoveInLocalCostMap(request->radius);
+  }
+  responce->result = status;
 }
 
 }  // namespace nav2_non_bt_navigator

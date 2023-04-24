@@ -437,11 +437,14 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
   void followPathResultCallback(const rclcpp_action::ClientGoalHandle<ActionFollowPath>::WrappedResult &result);
   bool startFollowPath(const nav_msgs::msg::Path &path);
   bool startNavToPose(const geometry_msgs::msg::PoseStamped &pose);
+  void HandlePointFreeMove(const std::shared_ptr<rmw_request_id_t> request_header,
+                                           const std::shared_ptr<nav2_pro_msgs::srv::PositionFreeMove::Request> request,
+                                           const std::shared_ptr<nav2_pro_msgs::srv::PositionFreeMove::Response> response);
   //-------------------nav to goal -----------------------------
   std::array<uint8_t, UUID_SIZE> follow_path_client_goal_id_, nav_to_pose_client_goal_id_;
   rclcpp_action::ClientGoalHandle<ActionFollowPath>::WrappedResult follow_path_client_result_;
   rclcpp_action::Client<ActionFollowPath>::SendGoalOptions follow_path_send_goal_options_;
-//  rclcpp_action::Client<ActionFollowPath>::SendGoalOptions nav_to_pose_send_goal_options_;
+  rclcpp::Service<nav2_pro_msgs::srv::PositionFreeMove>::SharedPtr point_free_move_service_;
   bool follow_path_working_;
   NavToPoseStatus nav_to_pose_status_, prev_nav_to_pose_status_;
   geometry_msgs::msg::PoseStamped global_pose_, local_pose_;
@@ -463,8 +466,8 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
   void pathUpdatedDeal();
   void goalUpdatedDeal();
   void planPathFailedDeal();
-  bool isCurrentStuck(double search_range);
-  bool isCurrentLocalStuck(double search_range);
+  bool isPositionFreeMoveInGlobalCostMap(double search_range);
+  bool isPositionFreeMoveInLocalCostMap(double search_range);
   bool isGoalCollided();
   void currentStuckRecoveryDeal();
 };
