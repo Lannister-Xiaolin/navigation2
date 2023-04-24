@@ -1592,13 +1592,26 @@ void Nav2SingleNodeNavigator::HandlePointFreeMove(const std::shared_ptr<rmw_requ
     return;
   }
   bool status = true;
-  if (request->global_costmap) {
-    status = status && isPositionFreeMoveInGlobalCostMap(request->radius);
+  if (!request->using_input_pose) {
+    if (request->global_costmap) {
+      status = status && isPositionFreeMoveInGlobalCostMap(request->radius);
+    }
+    if (request->local_costmap) {
+      status = status && isPositionFreeMoveInLocalCostMap(request->radius);
+    }
   } else {
-    status = false;
-  }
-  if (request->local_costmap) {
-    status = status && isPositionFreeMoveInLocalCostMap(request->radius);
+    if (request->global_costmap) {
+      geometry_msgs::msg::PoseStamped pose_stamped;
+      if (global_costmap_ros_->transformPoseToGlobalFrame(request->pose, pose_stamped)) {
+        status = status && isPositionFreeMoveInGlobalCostMap(pose_stamped.pose.position, request->radius);
+      }
+    }
+    if (request->local_costmap) {
+      geometry_msgs::msg::PoseStamped pose_stamped;
+      if (local_costmap_ros_->transformPoseToGlobalFrame(request->pose, pose_stamped)) {
+        status = status && isPositionFreeMoveInLocalCostMap(pose_stamped.pose.position, request->radius);
+      }
+    }
   }
   responce->result = status;
 }

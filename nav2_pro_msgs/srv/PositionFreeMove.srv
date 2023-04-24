@@ -1,4 +1,6 @@
 # Confirm if robot is movable in costmap according to radius
+geometry_msgs/PoseStamped pose
+bool using_input_pose
 bool local_costmap
 bool global_costmap
 float32 radius

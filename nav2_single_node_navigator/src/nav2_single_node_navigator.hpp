@@ -104,6 +104,27 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
       const std::string &planner_id);
 
  protected:
+
+  //todo copy from navigation2 , since this there is no child classes, no need to protected scope?
+  using ActionToPose = nav2_msgs::action::ComputePathToPose;
+  using ActionThroughPoses = nav2_msgs::action::ComputePathThroughPoses;
+  using ActionServerToPose = nav2_util::SimpleActionServer<ActionToPose>;
+  using ActionServerThroughPoses = nav2_util::SimpleActionServer<ActionThroughPoses>;
+  using ActionFollowPath = nav2_msgs::action::FollowPath;
+  using ActionServerFollowPath = nav2_util::SimpleActionServer<ActionFollowPath>;
+  using ActionNavToPose = nav2_msgs::action::NavigateToPose;
+  using ActionServerNavToPose = nav2_util::SimpleActionServer<ActionNavToPose>;
+  // Our action server implements the FollowPath action
+  std::unique_ptr<ActionServerFollowPath> action_server_follow_path_;
+  // Our action server implements the ComputePathToPose action
+  std::unique_ptr<ActionServerToPose> action_server_path_to_pose_;
+  std::unique_ptr<ActionServerThroughPoses> action_server_path_to_poses_;
+  std::unique_ptr<ActionServerNavToPose> action_server_nav_to_pos_;
+  rclcpp_action::Client<ActionNavToPose>::SharedPtr action_client_nav_to_pos_;
+  rclcpp_action::Client<ActionFollowPath>::SharedPtr action_client_follow_path_;
+
+
+
   /**
    * @brief Configure member variables and initializes planner
    * @param state Reference to LifeCycle node state
@@ -210,27 +231,7 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
       const nav_msgs::msg::Path &path,
       const std::string &planner_id);
 
-  using ActionToPose = nav2_msgs::action::ComputePathToPose;
-  using ActionThroughPoses = nav2_msgs::action::ComputePathThroughPoses;
-  using ActionServerToPose = nav2_util::SimpleActionServer<ActionToPose>;
-  using ActionServerThroughPoses = nav2_util::SimpleActionServer<ActionThroughPoses>;
-  using ActionFollowPath = nav2_msgs::action::FollowPath;
-  using ActionServerFollowPath = nav2_util::SimpleActionServer<ActionFollowPath>;
-  using ActionNavToPose = nav2_msgs::action::NavigateToPose;
-  using ActionServerNavToPose = nav2_util::SimpleActionServer<ActionNavToPose>;
-  // Our action server implements the FollowPath action
-  std::unique_ptr<ActionServerFollowPath> action_server_follow_path_;
-  // Our action server implements the ComputePathToPose action
-  std::unique_ptr<ActionServerToPose> action_server_path_to_pose_;
-  std::unique_ptr<ActionServerThroughPoses> action_server_path_to_poses_;
-  std::unique_ptr<ActionServerNavToPose> action_server_nav_to_pos_;
-  rclcpp_action::Client<ActionNavToPose>::SharedPtr action_client_nav_to_pos_;
-  rclcpp_action::Client<ActionFollowPath>::SharedPtr action_client_follow_path_;
 
-  typedef std::function<bool(typename ActionNavToPose::Goal::ConstSharedPtr)> OnGoalReceivedCallback;
-  typedef std::function<void()> OnLoopCallback;
-  typedef std::function<void(typename ActionNavToPose::Goal::ConstSharedPtr)> OnPreemptCallback;
-  typedef std::function<void(typename ActionNavToPose::Result::SharedPtr)> OnCompletionCallback;
   /**
    * @brief The action server callback which calls planner to get the path
    * ComputePathToPose
@@ -338,9 +339,9 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
     twist_thresh.theta = getThresholdedVelocity(twist.theta, min_theta_velocity_threshold_);
     return twist_thresh;
   }
-  bool isPathCollisionWithObstacle(nav_msgs::msg::Path &path);
-  bool isPositionFreeMoveInLocalCostMap(const geometry_msgs::msg::Point &point,double radius);
-  bool isPositionFreeMoveInGlobalCostMap(const geometry_msgs::msg::Point &point,double radius);
+
+
+ private:
   // ---------------controller----------------
 
   // Planner
@@ -422,24 +423,6 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
   //---------------nav to pose ---------------
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_sub_;
   // -------------callback group--------------
- private:
-  /**
-    * @brief Callback for speed limiting messages
-    * @param msg Shared pointer to nav2_msgs::msg::SpeedLimit
-    */
-  void speedLimitCallback(const nav2_msgs::msg::SpeedLimit::SharedPtr msg);
-  void navToPoseCallback();
-//  void onNavToPoseLoop();
-//  void onNavToPosePreempt(ActionNavToPose::Goal::ConstSharedPtr goal);
-//  void goalNavToPoseCompleted(ActionNavToPose::Result::SharedPtr result);
-//  bool OnNavToPoseGoalReceivedCallback(ActionNavToPose::Goal::ConstSharedPtr goal);
-  void callback_updated_goal(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
-  void followPathResultCallback(const rclcpp_action::ClientGoalHandle<ActionFollowPath>::WrappedResult &result);
-  bool startFollowPath(const nav_msgs::msg::Path &path);
-  bool startNavToPose(const geometry_msgs::msg::PoseStamped &pose);
-  void HandlePointFreeMove(const std::shared_ptr<rmw_request_id_t> request_header,
-                                           const std::shared_ptr<nav2_pro_msgs::srv::PositionFreeMove::Request> request,
-                                           const std::shared_ptr<nav2_pro_msgs::srv::PositionFreeMove::Response> response);
   //-------------------nav to goal -----------------------------
   std::array<uint8_t, UUID_SIZE> follow_path_client_goal_id_, nav_to_pose_client_goal_id_;
   rclcpp_action::ClientGoalHandle<ActionFollowPath>::WrappedResult follow_path_client_result_;
@@ -460,6 +443,26 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
   std::shared_ptr<rclcpp::Client<nav2_msgs::srv::ClearCostmapAroundRobot>> clear_local_around_client_;
   std::map<int,std::vector<int>> x_circle_radius_;
   std::map<int,std::vector<int>> y_circle_radius_;
+
+
+
+  /**
+  * @brief Callback for speed limiting messages
+  * @param msg Shared pointer to nav2_msgs::msg::SpeedLimit
+  */
+  void speedLimitCallback(const nav2_msgs::msg::SpeedLimit::SharedPtr msg);
+  void navToPoseCallback();
+//  void onNavToPoseLoop();
+//  void onNavToPosePreempt(ActionNavToPose::Goal::ConstSharedPtr goal);
+//  void goalNavToPoseCompleted(ActionNavToPose::Result::SharedPtr result);
+//  bool OnNavToPoseGoalReceivedCallback(ActionNavToPose::Goal::ConstSharedPtr goal);
+  void callback_updated_goal(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+  void followPathResultCallback(const rclcpp_action::ClientGoalHandle<ActionFollowPath>::WrappedResult &result);
+  bool startFollowPath(const nav_msgs::msg::Path &path);
+  bool startNavToPose(const geometry_msgs::msg::PoseStamped &pose);
+  void HandlePointFreeMove(const std::shared_ptr<rmw_request_id_t> request_header,
+                           const std::shared_ptr<nav2_pro_msgs::srv::PositionFreeMove::Request> request,
+                           const std::shared_ptr<nav2_pro_msgs::srv::PositionFreeMove::Response> response);
   void updateStatus(NavToPoseStatus nav_to_pose_status);
   bool updateGlobalPose();
   void followingDeal();
@@ -470,6 +473,9 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
   bool isPositionFreeMoveInLocalCostMap(double search_range);
   bool isGoalCollided();
   void currentStuckRecoveryDeal();
+  bool isPathCollisionWithObstacle(nav_msgs::msg::Path &path);
+  bool isPositionFreeMoveInLocalCostMap(const geometry_msgs::msg::Point &point,double radius);
+  bool isPositionFreeMoveInGlobalCostMap(const geometry_msgs::msg::Point &point,double radius);
 };
 
 }  // namespace nav2_single_node_navigator
