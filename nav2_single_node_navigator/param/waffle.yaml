@@ -84,7 +84,7 @@ nav2_single_node_navigator:
       short_circuit_trajectory_evaluation: True
       stateful: True
       critics: [ "RotateToGoal", "Oscillation","PathAlign", "BaseObstacle", "GoalAlign", "PathDist", "GoalDist" ]
-      BaseObstacle.scale: 0.08
+      BaseObstacle.scale: 0.12
       PathAlign.scale: 12.0
       PathAlign.forward_point_distance: 0.05
       GoalAlign.scale: 24.0
@@ -117,7 +117,7 @@ nav2_single_node_navigator:
       min_approach_linear_velocity: 0.05
       use_approach_linear_velocity_scaling: true
       approach_velocity_scaling_dist: 0.10
-      max_allowed_time_to_collision: 0.5
+      max_allowed_time_to_collision: 0.8
       use_regulated_linear_velocity_scaling: true
       use_cost_regulated_linear_velocity_scaling: false
       regulated_linear_scaling_min_radius: 0.9
