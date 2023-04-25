@@ -48,8 +48,8 @@ static constexpr unsigned char MAX_COUNT = 60;
 static constexpr unsigned char COUNT_AS_LETHAL = 30;
 // 以下三个值必须一致
 static constexpr unsigned char HIT_COUNT = 20;
-static constexpr unsigned char HIT_SUB_CLEAR_COUNT = 16;
-static constexpr unsigned char CLEAR_COUNT = 4;
+static constexpr unsigned char HIT_SUB_CLEAR_COUNT = 10;
+static constexpr unsigned char CLEAR_COUNT = 10;
 static constexpr unsigned char LOWER_CLEAR_COUNT = 1;
 static constexpr unsigned char ONE_COUNT = 1;
 static constexpr unsigned char TRACE_CLEAR_COUNT = 1;
