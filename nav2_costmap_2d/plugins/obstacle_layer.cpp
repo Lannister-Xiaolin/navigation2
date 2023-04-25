@@ -456,11 +456,11 @@ ObstacleLayer::updateBounds(
       for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
         double px = *iter_x, py = *iter_y, pz = *iter_z;
 
-        // if the obstacle is too high or too far away from the robot we won't add it
-        if (pz > max_obstacle_height_) {
-          RCLCPP_DEBUG(logger_, "The point is too high");
-          continue;
-        }
+//        // if the obstacle is too high or too far away from the robot we won't add it
+//        if (pz > max_obstacle_height_) {
+//          RCLCPP_DEBUG(logger_, "The point is too high");
+//          continue;
+//        }
 
         // compute the squared distance from the hitpoint to the pointcloud's origin
         double sq_dist =
@@ -499,13 +499,14 @@ ObstacleLayer::updateBounds(
         for (unsigned int ix = min_inner_x; ix < max_inner_x; ++ix) {
           auto index = getIndex(ix, iy);
           if (count_costmap_[index] == FREE_SPACE) continue;
-          if (costmap_[index] == NO_INFORMATION) {
-            costmap_[index] = count_costmap_[index] == CLEAR_COUNT ? FREE_SPACE : count_costmap_[index];
-          } else if (count_costmap_[index] == CLEAR_COUNT) {
+          if (count_costmap_[index] == CLEAR_COUNT && costmap_[index] != NO_INFORMATION) {
             costmap_[index] = costmap_[index] > CLEAR_COUNT ? costmap_[index] - CLEAR_COUNT : FREE_SPACE;
+          } else if (count_costmap_[index] == CLEAR_COUNT && costmap_[index] == NO_INFORMATION) {
+            costmap_[index] = FREE_SPACE;
           } else {
             costmap_[index] = std::min(static_cast<unsigned char>(costmap_[index] + count_costmap_[index]), MAX_COUNT);
           }
+
         }
       }
     }
@@ -564,7 +565,7 @@ ObstacleLayer::updateBounds(
       }
     }
   }
-  if (count_costmap_!=NULL){
+  if (count_costmap_ != NULL) {
     delete[] count_costmap_;
     count_costmap_ = NULL;
   }
@@ -811,7 +812,7 @@ void ObstacleLayer::emptyFreespace(const Observation &clearing_observation) {
           (wx -
               clearing_observation.origin_.x) * (wx - clearing_observation.origin_.x)
               + (wy - clearing_observation.origin_.y) * (wy - clearing_observation.origin_.y);
-      if (sq_dist<sq_min_range ||sq_dist>sq_max_range) continue;
+      if (sq_dist < sq_min_range || sq_dist > sq_max_range) continue;
       // check for legality just in case
       if (!worldToMap(wx, wy, x1, y1)) {
         continue;
@@ -832,7 +833,7 @@ void ObstacleLayer::emptyFreespace(const Observation &clearing_observation) {
           (wx -
               clearing_observation.origin_.x) * (wx - clearing_observation.origin_.x)
               + (wy - clearing_observation.origin_.y) * (wy - clearing_observation.origin_.y);
-      if (sq_dist<sq_min_range ||sq_dist>sq_max_range) continue;
+      if (sq_dist < sq_min_range || sq_dist > sq_max_range) continue;
       // check for legality just in case
       if (!worldToMap(wx, wy, x1, y1)) {
         continue;
