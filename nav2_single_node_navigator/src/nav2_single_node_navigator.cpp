@@ -1400,7 +1400,7 @@ bool Nav2SingleNodeNavigator::isGoalCollided() {
   return false;
 }
 void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
-  if (recover_count_ > 4) {
+  if (recover_count_ > 6) {
     updateStatus(NavToPoseStatus::STUCK_RECOVER_FAIL);
     return;
   }
