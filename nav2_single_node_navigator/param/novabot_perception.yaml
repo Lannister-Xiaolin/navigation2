@@ -197,8 +197,8 @@ local_costmap:
         footprint_clearing_enabled: False
         pointcloud:
           topic: /perception/points_labeled
-          min_obstacle_height: 0.45
-          max_obstacle_height: 0.55
+          min_obstacle_height: 0.40
+          max_obstacle_height: 0.66
           clearing: True
           marking: True
           data_type: "PointCloud2"
