@@ -21,7 +21,7 @@ nav2_single_node_navigator:
       tolerance: 0.5
       use_astar: false
       allow_unknown: true
-    controller_frequency: 12.0
+    controller_frequency: 13.0
     min_x_velocity_threshold: 0.001
     min_y_velocity_threshold: 0.4
     min_theta_velocity_threshold: 0.001
@@ -45,8 +45,8 @@ nav2_single_node_navigator:
     try_closer_goal_checker:
       stateful: True
       plugin: "nav2_controller::TryCloserGoalChecker"
-      xy_goal_tolerance: 0.10
-      yaw_goal_tolerance: 0.10
+      xy_goal_tolerance: 0.12
+      yaw_goal_tolerance: 0.12
       center_ratio: 0.4
 
     # DWB parameters
@@ -75,9 +75,9 @@ nav2_single_node_navigator:
        decel_lim_x: -2.0
        decel_lim_y: 0.0
        decel_lim_theta: -1.8
-       vx_samples: 15
+       vx_samples: 12
        vy_samples: 0
-       vtheta_samples: 20
+       vtheta_samples: 18
        sim_time: 1.5
        linear_granularity: 0.05
        angular_granularity: 0.025
