@@ -247,7 +247,7 @@ geometry_msgs::msg::TwistStamped RegulatedPurePursuitController::computeVelocity
     RCLCPP_WARN(logger_, "Unable to retrieve goal checker's tolerances!");
   } else {
     goal_dist_tol_ = pose_tolerance.position.x;
-    goal_dist_tol_relax_ = goal_dist_tol_ + 0.08;
+    goal_dist_tol_relax_ = goal_dist_tol_ + 0.12;
     goal_dist_tol_origin_ = goal_dist_tol_;
   }
 

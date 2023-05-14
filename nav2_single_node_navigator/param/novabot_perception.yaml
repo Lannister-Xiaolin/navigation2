@@ -135,13 +135,13 @@ nav2_single_node_navigator:
 #      no_outer_iterations: 2
 #      global_plan_prune_distance: 0.6
     FollowPathPurePursuit:
-#      plugin: "nav2_rotation_shim_controller::RotationShimController"
-      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
-#      angular_dist_threshold: 0.1745
-#      forward_sampling_distance: 0.50
-#      rotate_to_heading_angular_vel: 0.8
-#      max_angular_accel: 1.5
-#      simulate_ahead_time: 1.0
+      plugin: "nav2_rotation_shim_controller::RotationShimController"
+      primary_controller: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+      angular_dist_threshold: 0.1745
+      forward_sampling_distance: 0.30
+      rotate_to_heading_angular_vel: 1.0
+      max_angular_accel: 1.5
+      simulate_ahead_time: 1.0
       debug_trajectory_details: True
       desired_linear_vel: 0.5
       max_linear_accel: 2.0
@@ -153,9 +153,9 @@ nav2_single_node_navigator:
       rotate_to_heading_angular_vel: 0.8
       transform_tolerance: 0.1
       use_velocity_scaled_lookahead_dist: false
-      min_approach_linear_velocity: 0.08
+      min_approach_linear_velocity: 0.10
       use_approach_linear_velocity_scaling: true
-      approach_velocity_scaling_dist: 0.08
+      approach_velocity_scaling_dist: 0.05
       max_allowed_time_to_collision: 0.8
       use_regulated_linear_velocity_scaling: true
       use_cost_regulated_linear_velocity_scaling: false
