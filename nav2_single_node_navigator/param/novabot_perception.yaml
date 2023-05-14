@@ -21,7 +21,7 @@ nav2_single_node_navigator:
       tolerance: 0.5
       use_astar: false
       allow_unknown: true
-    controller_frequency: 13.0
+    controller_frequency: 12.0
     min_x_velocity_threshold: 0.001
     min_y_velocity_threshold: 0.4
     min_theta_velocity_threshold: 0.001
@@ -135,8 +135,8 @@ nav2_single_node_navigator:
 #      no_outer_iterations: 2
 #      global_plan_prune_distance: 0.6
     FollowPathPurePursuit:
-      plugin: "nav2_rotation_shim_controller::RotationShimController"
-      primary_controller: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+      #primary_controller: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
       angular_dist_threshold: 0.1745
       forward_sampling_distance: 0.30
       rotate_to_heading_angular_vel: 1.0
@@ -163,7 +163,7 @@ nav2_single_node_navigator:
       regulated_linear_scaling_min_speed: 0.25
       use_rotate_to_heading: true
       rotate_to_heading_min_angle: 0.785
-      max_angular_accel: 1.5
+      max_angular_accel: 22.0
       cost_scaling_dist: 0.3
       cost_scaling_gain: 1.0
       inflation_cost_scaling_factor: 3.0
