@@ -104,6 +104,8 @@ void RegulatedPurePursuitController::configure(
     node, plugin_name_ + ".max_angular_accel", rclcpp::ParameterValue(3.2));
   declare_parameter_if_not_declared(
     node, plugin_name_ + ".allow_reversing", rclcpp::ParameterValue(false));
+  declare_parameter_if_not_declared(
+      node, plugin_name_ + ".goal_relax_thresh", rclcpp::ParameterValue(0.12));
 
   node->get_parameter(plugin_name_ + ".desired_linear_vel", desired_linear_vel_);
   base_desired_linear_vel_ = desired_linear_vel_;
@@ -149,10 +151,9 @@ void RegulatedPurePursuitController::configure(
   node->get_parameter(plugin_name_ + ".max_angular_accel", max_angular_accel_);
   node->get_parameter(plugin_name_ + ".allow_reversing", allow_reversing_);
   node->get_parameter("controller_frequency", control_frequency);
-
+  node->get_parameter("goal_relax_thresh", goal_relax_thresh_);
   transform_tolerance_ = tf2::durationFromSec(transform_tolerance);
   control_duration_ = 1.0 / control_frequency;
-
   if (inflation_cost_scaling_factor_ <= 0.0) {
     RCLCPP_WARN(
       logger_, "The value inflation_cost_scaling_factor is incorrectly set, "
@@ -247,7 +248,7 @@ geometry_msgs::msg::TwistStamped RegulatedPurePursuitController::computeVelocity
     RCLCPP_WARN(logger_, "Unable to retrieve goal checker's tolerances!");
   } else {
     goal_dist_tol_ = pose_tolerance.position.x;
-    goal_dist_tol_relax_ = goal_dist_tol_ + 0.12;
+    goal_dist_tol_relax_ = goal_dist_tol_ + goal_relax_thresh_;
     goal_dist_tol_origin_ = goal_dist_tol_;
   }
 

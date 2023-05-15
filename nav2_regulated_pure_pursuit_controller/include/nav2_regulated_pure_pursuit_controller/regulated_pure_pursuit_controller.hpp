@@ -259,7 +259,7 @@ protected:
   double rotate_to_heading_min_angle_;
   double goal_dist_tol_,goal_dist_tol_relax_,goal_dist_tol_origin_;
   bool allow_reversing_;
-
+  double goal_relax_thresh_;
   nav_msgs::msg::Path global_plan_;
   std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<nav_msgs::msg::Path>> global_path_pub_;
   std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<geometry_msgs::msg::PointStamped>>

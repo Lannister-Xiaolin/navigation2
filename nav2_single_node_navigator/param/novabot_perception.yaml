@@ -45,9 +45,9 @@ nav2_single_node_navigator:
     try_closer_goal_checker:
       stateful: True
       plugin: "nav2_controller::TryCloserGoalChecker"
-      xy_goal_tolerance: 0.12
-      yaw_goal_tolerance: 0.12
-      center_ratio: 0.4
+      xy_goal_tolerance: 0.15
+      yaw_goal_tolerance: 0.15
+      center_ratio: 0.25
 
     # DWB parameters
     FollowPath:
@@ -63,7 +63,7 @@ nav2_single_node_navigator:
        min_vel_y: 0.0
        max_vel_x: 0.5
        max_vel_y: 0.0
-       max_vel_theta: 0.8
+       max_vel_theta: 1.2
        min_speed_xy: 0.0
        max_speed_xy: 0.6
        min_speed_theta: 0.0
@@ -163,7 +163,7 @@ nav2_single_node_navigator:
       regulated_linear_scaling_min_speed: 0.25
       use_rotate_to_heading: true
       rotate_to_heading_min_angle: 0.785
-      max_angular_accel: 22.0
+      max_angular_accel: 88.0
       cost_scaling_dist: 0.3
       cost_scaling_gain: 1.0
       inflation_cost_scaling_factor: 3.0
