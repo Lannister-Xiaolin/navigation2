@@ -356,6 +356,7 @@ void RegulatedPurePursuitController::rotateToHeading(
   const double min_feasible_angular_speed = curr_speed.angular.z - max_angular_accel_ * dt;
   const double max_feasible_angular_speed = curr_speed.angular.z + max_angular_accel_ * dt;
   angular_vel = std::clamp(angular_vel, min_feasible_angular_speed, max_feasible_angular_speed);
+  if (angular_vel*sign<0.) angular_vel=0.;
 }
 
 geometry_msgs::msg::PoseStamped RegulatedPurePursuitController::getLookAheadPoint(
