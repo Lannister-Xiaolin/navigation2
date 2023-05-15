@@ -47,7 +47,7 @@ nav2_single_node_navigator:
       plugin: "nav2_controller::TryCloserGoalChecker"
       xy_goal_tolerance: 0.15
       yaw_goal_tolerance: 0.15
-      center_ratio: 0.25
+      center_ratio: 0.4
 
     # DWB parameters
     FollowPath:
