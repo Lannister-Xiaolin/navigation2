@@ -77,6 +77,7 @@ LayeredCostmap::LayeredCostmap(std::string global_frame, bool rolling_window, bo
     primary_costmap_.setDefaultValue(0);
     combined_costmap_.setDefaultValue(0);
   }
+  is_out_of_bounds_=false;
 }
 
 LayeredCostmap::~LayeredCostmap()
@@ -115,6 +116,7 @@ void LayeredCostmap::resizeMap(
   {
     (*filter)->matchSize();
   }
+  is_out_of_bounds_ = false;
 }
 
 bool LayeredCostmap::isOutofBounds(double robot_x, double robot_y)
@@ -137,8 +139,8 @@ void LayeredCostmap::updateMap(double robot_x, double robot_y, double robot_yaw)
     primary_costmap_.updateOrigin(new_origin_x, new_origin_y);
     combined_costmap_.updateOrigin(new_origin_x, new_origin_y);
   }
-
-  if (isOutofBounds(robot_x, robot_y)) {
+  is_out_of_bounds_ = isOutofBounds(robot_x, robot_y);
+  if (is_out_of_bounds_) {
     RCLCPP_WARN(
       rclcpp::get_logger("nav2_costmap_2d"),
       "Robot is out of bounds of the costmap  %.2f  %.2f !",robot_x, robot_y);
@@ -285,6 +287,9 @@ void LayeredCostmap::setFootprint(const std::vector<geometry_msgs::msg::Point> &
   {
     (*filter)->onFootprintChanged();
   }
+}
+bool LayeredCostmap::isOutofBounds() {
+  return is_out_of_bounds_;
 }
 
 }  // namespace nav2_costmap_2d

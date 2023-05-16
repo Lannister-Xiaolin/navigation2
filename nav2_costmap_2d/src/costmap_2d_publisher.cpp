@@ -83,7 +83,8 @@ Costmap2DPublisher::Costmap2DPublisher(
       &Costmap2DPublisher::costmap_service_callback,
       this, std::placeholders::_1, std::placeholders::_2,
       std::placeholders::_3));
-
+  robot_out_of_map_pub_ =  node->create_publisher<std_msgs::msg::Bool>(
+       "robot_out_of_map", custom_qos);
   if (cost_translation_table_ == NULL) {
     cost_translation_table_ = new char[256];
 
@@ -259,6 +260,9 @@ Costmap2DPublisher::costmap_service_callback(
   response->map.metadata.origin.orientation = tf2::toMsg(quaternion);
   response->map.data.resize(data_length);
   response->map.data.assign(data, data + data_length);
+}
+void Costmap2DPublisher::publishRobotOutOfMap(std_msgs::msg::Bool& a_bool) {
+  robot_out_of_map_pub_->publish(a_bool);
 }
 
 }  // end namespace nav2_costmap_2d

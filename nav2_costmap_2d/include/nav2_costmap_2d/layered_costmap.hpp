@@ -209,7 +209,7 @@ public:
   /** @brief Checks if the robot is outside the bounds of its costmap in the case
   * of poorly configured setups. */
   bool isOutofBounds(double robot_x, double robot_y);
-
+  bool isOutofBounds();
 private:
   // primary_costmap_ is a bottom costmap used by plugins when costmap filters were enabled.
   // combined_costmap_ is a final costmap where all results produced by plugins and filters (if any)
@@ -222,6 +222,7 @@ private:
   bool rolling_window_;  /// < @brief Whether or not the costmap should roll with the robot
 
   bool current_;
+  bool is_out_of_bounds_;
   double minx_, miny_, maxx_, maxy_;
   unsigned int bx0_, bxn_, by0_, byn_;
 

@@ -53,6 +53,7 @@
 #include "nav2_util/lifecycle_node.hpp"
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+#include "std_msgs/msg/bool.hpp"
 
 namespace nav2_costmap_2d
 {
@@ -91,6 +92,7 @@ public:
     costmap_pub_->on_activate();
     costmap_update_pub_->on_activate();
     costmap_raw_pub_->on_activate();
+    robot_out_of_map_pub_->on_activate();
   }
 
   /**
@@ -101,6 +103,7 @@ public:
     costmap_pub_->on_deactivate();
     costmap_update_pub_->on_deactivate();
     costmap_raw_pub_->on_deactivate();
+    robot_out_of_map_pub_->on_deactivate();
   }
 
   /**
@@ -130,7 +133,7 @@ public:
   {
     return active_;
   }
-
+  void publishRobotOutOfMap(std_msgs::msg::Bool &a_bool);
 private:
   /** @brief Prepare grid_ message for publication. */
   void prepareGrid();
@@ -164,7 +167,8 @@ private:
 
   // Publisher for raw costmap values as msg::Costmap from layered costmap
   rclcpp_lifecycle::LifecyclePublisher<nav2_msgs::msg::Costmap>::SharedPtr costmap_raw_pub_;
-
+  // Publisher for raw costmap values as msg::Costmap from layered costmap
+  rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::Bool>::SharedPtr robot_out_of_map_pub_;
   // Service for getting the costmaps
   rclcpp::Service<nav2_msgs::srv::GetCostmap>::SharedPtr costmap_service_;
 

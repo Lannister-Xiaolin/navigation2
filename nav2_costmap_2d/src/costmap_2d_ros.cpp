@@ -403,7 +403,8 @@ Costmap2DROS::mapUpdateLoop(double frequency)
   RCLCPP_DEBUG(get_logger(), "Entering loop");
 
   rclcpp::WallRate r(frequency);    // 200ms by default
-
+  std_msgs::msg::Bool out_of_map;
+  out_of_map.data = false;
   while (rclcpp::ok() && !map_update_thread_shutdown_) {
     nav2_util::ExecutionTimer timer;
 
@@ -411,7 +412,8 @@ Costmap2DROS::mapUpdateLoop(double frequency)
     timer.start();
     updateMap();
     timer.end();
-
+    out_of_map.data = layered_costmap_->isOutofBounds();
+    costmap_publisher_->publishRobotOutOfMap(out_of_map);
     RCLCPP_DEBUG(get_logger(), "Map update time: %.9f", timer.elapsed_time_in_seconds());
     if (publish_cycle_ > rclcpp::Duration(0s) && layered_costmap_->isInitialized()) {
       unsigned int x0, y0, xn, yn;
