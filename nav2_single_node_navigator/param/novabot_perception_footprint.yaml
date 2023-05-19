@@ -274,7 +274,7 @@ global_costmap:
       footprint: "[ [0.50, 0.25], [0.50, -0.25], [-0.2, -0.25], [-0.20, 0.25] ]"
       track_unknown_space: true
       # "copy_layer",
-      plugins: [ "static_layer", "copy_layer", "range_sensor_layer","inflation_layer" ]
+      plugins: [ "static_layer", "copy_layer","inflation_layer" ]
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
