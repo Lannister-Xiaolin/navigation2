@@ -340,7 +340,7 @@ Nav2SingleNodeNavigator::on_configure(const rclcpp_lifecycle::State &state) {
   clear_local_around_client_ = node->create_client<nav2_msgs::srv::ClearCostmapAroundRobot>(
       "/local_costmap/clear_around_local_costmap");
   //-------to be parameterized params
-  max_back_angular_vel_ = 0.35; // stuck recover max back angular vel
+  max_back_angular_vel_ = 0.51; // stuck recover max back angular vel
   get_parameter("max_back_dis", max_back_dis_);
   max_back_vel_ = 0.1;
   path_fail_stuck_confirm_range_ = 0.06;
@@ -1465,24 +1465,28 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
   double vel = 0.1;
   double angular_vel = 0;
   auto abs_angle = abs(angle);
-  if (abs_angle < 1.5) {
+  if (abs_angle < 1.5707) {
     vel = max_back_vel_;
   } else {
     vel = -max_back_vel_;
   }
   if (dis < 0.05)
     vel = 0;
-  if (abs_angle > 2.5 || abs_angle < 0.5) {
+  if (abs_angle > 2.53 || abs_angle < 0.61) {
     angular_vel = 0.;
   } else {
-    if (angle < 1.5 && angle > 0) {
-      angular_vel = max_back_angular_vel_;
-    } else if (angular_vel > -1.5 && angle < 0) {
-      angular_vel = -max_back_angular_vel_;
-    } else if (angle > 0 && angle > 1.5) {
-      angular_vel = -max_back_angular_vel_;
-    } else if (angular_vel < -1.5 && angle < 0) {
-      angular_vel = max_back_angular_vel_;
+    if (vel > 0) {
+      if (angle < 1.5707 && angle > 0) {
+        angular_vel = max_back_angular_vel_;
+      } else if (angular_vel < 0 && angular_vel >= -1.5707) {
+        angular_vel = -max_back_angular_vel_;
+      }
+    } else if (vel < 0) {
+      if (angle < -1.5707 && angle < 0) {
+        angular_vel = max_back_angular_vel_;
+      } else if (angular_vel > 0 && angular_vel >= 1.5707) {
+        angular_vel = -max_back_angular_vel_;
+      }
     }
   }
   auto count = static_cast<int>(((dis)) * 10 / max_back_vel_);
