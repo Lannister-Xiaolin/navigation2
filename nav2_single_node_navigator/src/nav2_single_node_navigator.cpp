@@ -339,6 +339,8 @@ Nav2SingleNodeNavigator::on_configure(const rclcpp_lifecycle::State &state) {
 
   clear_local_around_client_ = node->create_client<nav2_msgs::srv::ClearCostmapAroundRobot>(
       "/local_costmap/clear_around_local_costmap");
+  clear_global_around_client_ = node->create_client<nav2_msgs::srv::ClearCostmapAroundRobot>(
+      "/global_costmap/clear_around_global_costmap");
   //-------to be parameterized params
   max_back_angular_vel_ = 0.51; // stuck recover max back angular vel
   get_parameter("max_back_dis", max_back_dis_);
@@ -433,6 +435,7 @@ Nav2SingleNodeNavigator::on_cleanup(const rclcpp_lifecycle::State &state) {
   tf_.reset();
   global_costmap_ros_->on_cleanup(state);
   clear_local_around_client_.reset();
+  clear_global_around_client_.reset();
   PlannerMap::iterator it;
   for (it = planners_.begin(); it != planners_.end(); ++it) {
     it->second->cleanup();
@@ -1074,6 +1077,7 @@ void Nav2SingleNodeNavigator::navToPoseCallback() {
   current_planned_path_ = nav_msgs::msg::Path();
   int local_plan_failed_count = 0;
   recover_count_ = 0;
+  no_valid_path_retry_count_ = 0;
   try {
     while (rclcpp::ok()) {
       current_time_ = now();
@@ -1345,6 +1349,7 @@ void Nav2SingleNodeNavigator::pathUpdatedDeal() {
     current_path_time_ = current_time_;
     last_check_time_ = current_time_;
     updateStatus(NavToPoseStatus::FOLLOWING);
+    no_valid_path_retry_count_ = 0;
   } else updateStatus(NavToPoseStatus::ACTION_FAILED);
 }
 void Nav2SingleNodeNavigator::goalUpdatedDeal() {
@@ -1360,8 +1365,21 @@ void Nav2SingleNodeNavigator::planPathFailedDeal() {
     updateStatus(NavToPoseStatus::GOAL_COLLIDED);
     can_try_recover_ = true;
   } else {
-    RCLCPP_ERROR(get_logger(), "Not deal with path plan failed with current and goal not stucked ");
-    can_try_recover_ = false;
+    no_valid_path_retry_count_ +=1;
+    if (no_valid_path_retry_count_<2){
+      can_try_recover_ = true;
+      updateStatus(NavToPoseStatus::GOAL_UPDATED);
+      RCLCPP_WARN(get_logger(), "Just clear around costmap to retry plan!!!");
+      nav2_msgs::srv::ClearCostmapAroundRobot::Request::SharedPtr
+          request = std::make_shared<nav2_msgs::srv::ClearCostmapAroundRobot::Request>();
+      request->reset_distance = 1.5;
+      clear_local_around_client_->async_send_request(request);
+      clear_global_around_client_->async_send_request(request);
+      std::this_thread::sleep_for(500ms);
+    }else{
+      RCLCPP_ERROR(get_logger(), "Not deal with path plan failed with current and goal not stucked ");
+      can_try_recover_ = false;
+    }
   };
 }
 bool Nav2SingleNodeNavigator::isPositionFreeMoveInGlobalCostMap(double search_range) {

@@ -436,11 +436,13 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
   nav_msgs::msg::Path current_planned_path_;
   bool can_try_recover_;
   int recover_count_; // compute plan fail or follow path abort retry count because of current position stuck
+  int no_valid_path_retry_count_;
   double max_back_dis_,max_back_vel_,max_back_angular_vel_,path_fail_stuck_confirm_range_,follow_fail_stuck_confirm_range_;
   std::shared_ptr<const nav2_msgs::action::NavigateToPose::Goal> navigate_to_pose_goal_;
   std::shared_ptr<nav2_msgs::action::NavigateToPose::Result> navigate_to_pose_result_;
 //  std::shared_ptr<nav2_msgs::action::NavigateToPose::Feedback> navigate_to_pose_feedback_;
   std::shared_ptr<rclcpp::Client<nav2_msgs::srv::ClearCostmapAroundRobot>> clear_local_around_client_;
+  std::shared_ptr<rclcpp::Client<nav2_msgs::srv::ClearCostmapAroundRobot>> clear_global_around_client_;
   std::map<int,std::vector<int>> x_circle_radius_;
   std::map<int,std::vector<int>> y_circle_radius_;
 
