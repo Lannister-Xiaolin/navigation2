@@ -1349,7 +1349,6 @@ void Nav2SingleNodeNavigator::pathUpdatedDeal() {
     current_path_time_ = current_time_;
     last_check_time_ = current_time_;
     updateStatus(NavToPoseStatus::FOLLOWING);
-    no_valid_path_retry_count_ = 0;
   } else updateStatus(NavToPoseStatus::ACTION_FAILED);
 }
 void Nav2SingleNodeNavigator::goalUpdatedDeal() {
