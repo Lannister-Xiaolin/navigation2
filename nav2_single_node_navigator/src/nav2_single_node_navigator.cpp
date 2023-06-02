@@ -825,7 +825,7 @@ void Nav2SingleNodeNavigator::computeControl() {
       action_server_follow_path_->terminate_current();
       return;
     }
-
+    need_update_checked_goal_ = false;
     setPlannerPath(action_server_follow_path_->get_current_goal()->path);
     progress_checker_->reset();
 
@@ -896,7 +896,14 @@ void Nav2SingleNodeNavigator::setPlannerPath(const nav_msgs::msg::Path &path) {
   RCLCPP_DEBUG(
       get_logger(), "Path end point is (%.2f, %.2f)",
       end_pose_.pose.position.x, end_pose_.pose.position.y);
-
+  if ((std::hypot((end_pose_.pose.position.x - path.poses.begin()->pose.position.x),
+                  (end_pose_.pose.position.y - path.poses.begin()->pose.position.y))) < 0.15) {
+    end_pose_ = path.poses.at(path.poses.size() / 2);
+    need_update_checked_goal_ = true;
+    end_pose_.header.frame_id = path.header.frame_id;
+    RCLCPP_INFO(get_logger(),
+                "Current pos is very close to the target pose, sample middle point to avoid error finish");
+  }
   current_path_ = path;
 }
 
@@ -984,6 +991,7 @@ void Nav2SingleNodeNavigator::updateGlobalPath() {
       action_server_follow_path_->terminate_current();
       return;
     }
+    need_update_checked_goal_ = false;
     setPlannerPath(goal->path);
   }
 }
@@ -1023,7 +1031,15 @@ bool Nav2SingleNodeNavigator::isGoalReached() {
   nav_2d_utils::transformPose(
       local_costmap_ros_->getTfBuffer(), local_costmap_ros_->getGlobalFrameID(),
       end_pose_, transformed_end_pose, tolerance);
-
+  if (need_update_checked_goal_) {
+    if ((std::abs(transformed_end_pose.pose.position.x - pose.pose.position.x)
+        + std::abs(transformed_end_pose.pose.position.y - pose.pose.position.y)) < 0.50) {
+      if (!current_path_.poses.empty()) end_pose_ = current_path_.poses.back();
+      need_update_checked_goal_ = false;
+      end_pose_.header.frame_id = current_path_.header.frame_id;
+      RCLCPP_INFO(get_logger(), "Setting path end pose as goal");
+    }
+  }
   return goal_checkers_[current_goal_checker_]->isGoalReached(
       pose.pose, transformed_end_pose.pose,
       velocity);
@@ -1364,8 +1380,8 @@ void Nav2SingleNodeNavigator::planPathFailedDeal() {
     updateStatus(NavToPoseStatus::GOAL_COLLIDED);
     can_try_recover_ = true;
   } else {
-    no_valid_path_retry_count_ +=1;
-    if (no_valid_path_retry_count_<2){
+    no_valid_path_retry_count_ += 1;
+    if (no_valid_path_retry_count_ < 2) {
       can_try_recover_ = true;
       updateStatus(NavToPoseStatus::GOAL_UPDATED);
       RCLCPP_WARN(get_logger(), "Just clear around costmap to retry plan!!!");
@@ -1375,7 +1391,7 @@ void Nav2SingleNodeNavigator::planPathFailedDeal() {
       clear_local_around_client_->async_send_request(request);
       clear_global_around_client_->async_send_request(request);
       std::this_thread::sleep_for(500ms);
-    }else{
+    } else {
       RCLCPP_ERROR(get_logger(), "Not deal with path plan failed with current and goal not stucked ");
       can_try_recover_ = false;
     }

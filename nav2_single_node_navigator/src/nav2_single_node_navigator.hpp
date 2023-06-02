@@ -410,7 +410,7 @@ class Nav2SingleNodeNavigator : public nav2_util::LifecycleNode {
   double min_theta_velocity_threshold_;
 
   double failure_tolerance_;
-
+  bool need_update_checked_goal_;
   // Whether we've published the single controller warning yet
   geometry_msgs::msg::PoseStamped end_pose_;
 
