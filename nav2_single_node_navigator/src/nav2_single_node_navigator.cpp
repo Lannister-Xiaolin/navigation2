@@ -1061,9 +1061,11 @@ void Nav2SingleNodeNavigator::speedLimitCallback(const nav2_msgs::msg::SpeedLimi
   }
 }
 void Nav2SingleNodeNavigator::navToPoseCallback() {
+  updateGlobalPose();
   RCLCPP_INFO(
       get_logger(),
-      "Begin navigating from current location to (%.2f, %.2f)",
+      "Begin navigating from current  (%.2f, %.2f) to (%.2f, %.2f)", global_pose_.pose.position.x,
+      global_pose_.pose.position.y,
       action_server_nav_to_pos_->get_current_goal()->pose.pose.position.x,
       action_server_nav_to_pos_->get_current_goal()->pose.pose.position.y);
   auto is_canceling = [&]() {
@@ -1390,7 +1392,9 @@ void Nav2SingleNodeNavigator::planPathFailedDeal() {
       request->reset_distance = 1.5;
       clear_local_around_client_->async_send_request(request);
       clear_global_around_client_->async_send_request(request);
-      std::this_thread::sleep_for(500ms);
+      for (int i = 0; i < 5; ++i) {
+        if (rclcpp::ok()) std::this_thread::sleep_for(200ms);
+      }
     } else {
       RCLCPP_ERROR(get_logger(), "Not deal with path plan failed with current and goal not stucked ");
       can_try_recover_ = false;
@@ -1483,7 +1487,10 @@ void Nav2SingleNodeNavigator::currentStuckRecoveryDeal() {
     if (final_recover_pos) break;
   }
   if (!final_recover_pos) {
-    RCLCPP_WARN(get_logger(), "Can't find any movable area for stuck recover!!!");
+    RCLCPP_WARN(get_logger(),
+                "Can't find any movable area for stuck recover!!! current pos: %.2f %.2f",
+                global_pose_.pose.position.x,
+                global_pose_.pose.position.y);
     updateStatus(NavToPoseStatus::STUCK_RECOVER_FAIL);
     return;
   }
