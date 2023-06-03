@@ -212,6 +212,7 @@ local_costmap:
           label_with_min_height_mode: True
           enable_small_area_restrict: False
           footprint_clearing_enabled: False
+          observation_persistence: 2.0
       range_sensor_layer:
         plugin: "nav2_costmap_2d::RangeSensorLayer"
         enabled: True
@@ -262,6 +263,7 @@ global_costmap:
           only_obstacle_label: False
           label_with_min_height_mode: True
           enable_small_area_restrict: True
+          observation_persistence: 2.0
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True
