@@ -897,7 +897,7 @@ void Nav2SingleNodeNavigator::setPlannerPath(const nav_msgs::msg::Path &path) {
       get_logger(), "Path end point is (%.2f, %.2f)",
       end_pose_.pose.position.x, end_pose_.pose.position.y);
   if ((std::hypot((end_pose_.pose.position.x - path.poses.begin()->pose.position.x),
-                  (end_pose_.pose.position.y - path.poses.begin()->pose.position.y))) < 0.15) {
+                  (end_pose_.pose.position.y - path.poses.begin()->pose.position.y))) < 0.10 && path.poses.size()>10) {
     end_pose_ = path.poses.at(path.poses.size() / 2);
     need_update_checked_goal_ = true;
     end_pose_.header.frame_id = path.header.frame_id;
