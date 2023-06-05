@@ -897,7 +897,7 @@ void Nav2SingleNodeNavigator::setPlannerPath(const nav_msgs::msg::Path &path) {
       get_logger(), "Path end point is (%.2f, %.2f)",
       end_pose_.pose.position.x, end_pose_.pose.position.y);
   if ((std::hypot((end_pose_.pose.position.x - path.poses.begin()->pose.position.x),
-                  (end_pose_.pose.position.y - path.poses.begin()->pose.position.y))) < 0.10 && path.poses.size()>10) {
+                  (end_pose_.pose.position.y - path.poses.begin()->pose.position.y))) < 0.06 && path.poses.size()>20) {
     end_pose_ = path.poses.at(path.poses.size() / 2);
     need_update_checked_goal_ = true;
     end_pose_.header.frame_id = path.header.frame_id;
@@ -1037,6 +1037,9 @@ bool Nav2SingleNodeNavigator::isGoalReached() {
       if (!current_path_.poses.empty()) end_pose_ = current_path_.poses.back();
       need_update_checked_goal_ = false;
       end_pose_.header.frame_id = current_path_.header.frame_id;
+      nav_2d_utils::transformPose(
+          local_costmap_ros_->getTfBuffer(), local_costmap_ros_->getGlobalFrameID(),
+          end_pose_, transformed_end_pose, tolerance);
       RCLCPP_INFO(get_logger(), "Setting path end pose as goal");
     }
   }
